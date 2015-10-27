@@ -190,12 +190,12 @@ namespace diff_drive_controller
                           << (open_loop_ ? "open" : "close") << " loop.");
 
     controller_nh.param("pose_from_joint_position", pose_from_joint_position_, pose_from_joint_position_);
-    ROS_DEBUG_STREAM_COND_NAMED(!open_loop_, name_,
+    ROS_INFO_STREAM_COND_NAMED(!open_loop_, name_,
         "Odometry pose will be computed using the wheel joint " <<
         (pose_from_joint_position_ ? "position" : "velocity") << " feedback.");
 
     controller_nh.param("twist_from_joint_position", twist_from_joint_position_, twist_from_joint_position_);
-    ROS_DEBUG_STREAM_COND_NAMED(!open_loop_, name_,
+    ROS_INFO_STREAM_COND_NAMED(!open_loop_, name_,
         "Odometry twist will be computed using the wheel joint " <<
         (twist_from_joint_position_ ? "position" : "velocity") << " feedback.");
 
@@ -278,7 +278,7 @@ namespace diff_drive_controller
 
     controller_nh.param("publish_state", publish_state_, publish_state_);
     ROS_INFO_STREAM_NAMED(name_,
-        "Publishing the joint trajectory controller state is "
+        "Publishing the controller state is "
         << (publish_state_?"enabled":"disabled"));
 
     controller_nh.param("control_frequency_desired", control_frequency_desired_, control_frequency_desired_);
