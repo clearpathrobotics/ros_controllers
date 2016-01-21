@@ -36,20 +36,25 @@
  * Author: Enrique Fernández
  */
 
-#ifndef EXACT_INTEGRATE_FUNCTOR_H_
-#define EXACT_INTEGRATE_FUNCTOR_H_
+#ifndef EULER_INTEGRATE_FUNCTOR_H_
+#define EULER_INTEGRATE_FUNCTOR_H_
 
-#include <diff_drive_controller/runge_kutta_2_integrate_functor.h>
+#include <diff_drive_controller/integrate_function.h>
+
+#include <boost/type_traits.hpp>
+#include <boost/static_assert.hpp>
+
+#include <cmath>
 
 namespace diff_drive_controller
 {
 
-  /// Exact integration:
-  struct ExactIntegrateFunctor
+  /// Euler integration:
+  struct EulerIntegrateFunctor
   {
     /**
      * \brief Integrates the pose (x, y, yaw) given the velocities (v, w) using
-     * exact (arc) method
+     * Euler
      * \param[in, out] x   Pose x   component
      * \param[in, out] y   Pose y   component
      * \param[in, out] yaw Pose yaw component
@@ -65,24 +70,14 @@ namespace diff_drive_controller
           !boost::is_pod<T>::value || boost::is_floating_point<T>::value,
           "The pose components must be specified as float values.");
 
-      if (abs(w) < 1e-9)
-      {
-        RungeKutta2IntegrateFunctor()(x, y, yaw, v, w);
-      }
-      else
-      {
-        /// Exact integration (should solve problems when angular is zero):
-        const T yaw_old = yaw;
-        const T r = v/w;
-        yaw += w;
-        x   +=  r * (sin(yaw) - sin(yaw_old));
-        y   += -r * (cos(yaw) - cos(yaw_old));
-      }
+      x   += v * cos(yaw);
+      y   += v * sin(yaw);
+      yaw += w;
     }
 
     /**
      * \brief Integrates the pose (x, y, yaw) given the velocities (v, w) using
-     * exact (arc) method
+     * Euler
      * \param[in, out] x   Pose x   component
      * \param[in, out] y   Pose y   component
      * \param[in, out] yaw Pose yaw component
@@ -98,39 +93,23 @@ namespace diff_drive_controller
         IntegrateFunction::PoseJacobian& J_pose,
         IntegrateFunction::MeasJacobian& J_meas) const
     {
-      if (std::abs(w) < 1e-9)
-      {
-        RungeKutta2IntegrateFunctor()(x, y, yaw, v, w, J_pose, J_meas);
-      }
-      else
-      {
-        const double r = v/w;
+      const double cos_yaw = std::cos(yaw);
+      const double sin_yaw = std::sin(yaw);
 
-        const double cos_yaw_old = std::cos(yaw);
-        const double sin_yaw_old = std::sin(yaw);
+      x   += v * cos_yaw;
+      y   += v * sin_yaw;
+      yaw += w;
 
-        yaw += w;
+      J_pose << 1.0, 0.0, -v * sin_yaw,
+                0.0, 1.0,  v * cos_yaw,
+                0.0, 0.0, 1.0;
 
-        const double cos_yaw = std::cos(yaw);
-        const double sin_yaw = std::sin(yaw);
-
-        const double cos_diff = cos_yaw - cos_yaw_old;
-        const double sin_diff = sin_yaw - sin_yaw_old;
-
-        x +=  r * sin_diff;
-        y += -r * cos_diff;
-
-        J_pose << 1.0, 0.0, r * cos_diff,
-                  0.0, 1.0, r * sin_diff,
-                  0.0, 0.0,          1.0;
-
-        J_meas <<  sin_diff/w, r * cos_yaw - 0.5 * v * sin_diff,
-                  -cos_diff/w, r * sin_yaw + 0.5 * v * cos_diff,
-                          0.0,                              1.0;
-      }
+      J_meas << cos_yaw, 0.0,
+                sin_yaw, 0.0,
+                    0.0, 1.0;
     }
   };
 
 }  // namespace diff_drive_controller
 
-#endif /* EXACT_INTEGRATE_FUNCTOR_H_ */
+#endif /* EULER_INTEGRATE_FUNCTOR_H_ */
