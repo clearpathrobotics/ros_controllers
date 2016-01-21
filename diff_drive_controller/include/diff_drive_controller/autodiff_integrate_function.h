@@ -60,7 +60,7 @@ namespace diff_drive_controller
 
       /**
        * \brief Constructor
-       * \param [in] functor Integrate functor
+       * \param[in] functor Integrate functor
        */
       AutoDiffIntegrateFunction(IntegrateFunctor<Functor>* functor)
         : functor_(functor)
@@ -68,11 +68,11 @@ namespace diff_drive_controller
 
       /**
        * \brief Integrates w/o computing the jacobians
-       * \param [in, out] x Pose x component
-       * \param [in, out] y Pose y component
-       * \param [in, out] Y Pose yaw component
-       * \param [in] v_l Left  wheel velocity (displacement)
-       * \param [in] v_r Right wheel velocity (displacement)
+       * \param[in, out] x Pose x component
+       * \param[in, out] y Pose y component
+       * \param[in, out] Y Pose yaw component
+       * \param[in] v_l Left  wheel velocity (displacement)
+       * \param[in] v_r Right wheel velocity (displacement)
        */
       virtual void operator()(double& x, double& y, double& Y,
           const double& v_l, const double& v_r) const
@@ -82,13 +82,13 @@ namespace diff_drive_controller
 
       /**
        * \brief Integrates and computes the jacobians
-       * \param [in, out] x Pose x component
-       * \param [in, out] y Pose y component
-       * \param [in, out] Y Pose yaw component
-       * \param [in] v_l Left  wheel velocity (displacement)
-       * \param [in] v_r Right wheel velocity (displacement)
-       * \param [out] J_pose Jacobian (3x3) wrt the pose (x, y, Y)
-       * \param [out] J_meas Jacobian (3x2) wrt the measurement (v_l, v_r)
+       * \param[in, out] x Pose x component
+       * \param[in, out] y Pose y component
+       * \param[in, out] Y Pose yaw component
+       * \param[in] v_l Left  wheel velocity (displacement)
+       * \param[in] v_r Right wheel velocity (displacement)
+       * \param[out] J_pose Jacobian (3x3) wrt the pose (x, y, Y)
+       * \param[out] J_meas Jacobian (3x2) wrt the measurement (v_l, v_r)
        */
       virtual void operator()(double& x, double& y, double& Y,
           const double& v_l, const double& v_r,
@@ -124,12 +124,13 @@ namespace diff_drive_controller
 
       /**
        * \brief Sets the wheel parameters: radius and separation
-       * \param wheel_separation   Seperation between left and right wheels [m]
-       * \param left_wheel_radius  Left  wheel radius [m]
-       * \param right_wheel_radius Right wheel radius [m]
+       * \param[in] wheel_separation   Seperation between
+       *                               left and right wheels [m]
+       * \param[in] left_wheel_radius  Left  wheel radius [m]
+       * \param[in] right_wheel_radius Right wheel radius [m]
        */
-      virtual void setWheelParams(double wheel_separation,
-          double left_wheel_radius, double right_wheel_radius)
+      virtual void setWheelParams(const double wheel_separation,
+          const double left_wheel_radius, const double right_wheel_radius)
       {
         functor_->setWheelParams(wheel_separation,
             left_wheel_radius, right_wheel_radius);

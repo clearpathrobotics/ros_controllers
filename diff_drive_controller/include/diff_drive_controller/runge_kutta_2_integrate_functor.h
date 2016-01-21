@@ -39,6 +39,8 @@
 #ifndef RUNGE_KUTTA_2_INTEGRATE_FUNCTOR_H_
 #define RUNGE_KUTTA_2_INTEGRATE_FUNCTOR_H_
 
+#include <diff_drive_controller/integrate_function.h>
+
 #include <boost/type_traits.hpp>
 #include <boost/static_assert.hpp>
 
@@ -53,13 +55,13 @@ namespace diff_drive_controller
     /**
      * \brief Integrates the pose (x, y, yaw) given the velocities (v, w) using
      * 2nd order Runge-Kutta
-     * \param [in, out] x   Pose x   component
-     * \param [in, out] y   Pose y   component
-     * \param [in, out] yaw Pose yaw component
-     * \param [in] v Linear  velocity   [m]
-     *               (linear  displacement, i.e.   m/s * dt) computed by encoders
-     * \param [in] w Angular velocity [rad]
-     *               (angular displacement, i.e. rad/s * dt) computed by encoders
+     * \param[in, out] x   Pose x   component
+     * \param[in, out] y   Pose y   component
+     * \param[in, out] yaw Pose yaw component
+     * \param[in] v Linear  velocity   [m]
+     *              (linear  displacement, i.e.   m/s * dt) computed by encoders
+     * \param[in] w Angular velocity [rad]
+     *              (angular displacement, i.e. rad/s * dt) computed by encoders
      */
     template <typename T>
     void operator()(T& x, T& y, T& yaw, const T& v, const T& w) const
@@ -73,6 +75,42 @@ namespace diff_drive_controller
       x   += v * cos(direction);
       y   += v * sin(direction);
       yaw += w;
+    }
+
+    /**
+     * \brief Integrates the pose (x, y, yaw) given the velocities (v, w) using
+     * 2nd order Runge-Kutta
+     * \param[in, out] x   Pose x   component
+     * \param[in, out] y   Pose y   component
+     * \param[in, out] yaw Pose yaw component
+     * \param[in] v Linear  velocity   [m]
+     *              (linear  displacement, i.e.   m/s * dt) computed by encoders
+     * \param[in] w Angular velocity [rad]
+     *              (angular displacement, i.e. rad/s * dt) computed by encoders
+     * \param[out] J_pose Jacobian wrt the pose (x, y, yaw)
+     * \param[out] J_meas Jacobian wrt the meas(urement) velocities (v, w)
+     */
+    void operator()(double& x, double& y, double& yaw,
+        const double& v, const double& w,
+        IntegrateFunction::PoseJacobian& J_pose,
+        IntegrateFunction::MeasJacobian& J_meas) const
+    {
+      const double direction = yaw + w * 0.5;
+
+      const double cos_direction = std::cos(direction);
+      const double sin_direction = std::sin(direction);
+
+      x   += v * cos_direction;
+      y   += v * sin_direction;
+      yaw += w;
+
+      J_pose << 1.0, 0.0, -v * sin_direction,
+                0.0, 1.0,  v * cos_direction,
+                0.0, 0.0,                1.0;
+
+      J_meas << cos_direction, -0.5 * v * sin_direction,
+                sin_direction,  0.5 * v * cos_direction,
+                          0.0,                      1.0;
     }
   };
 
