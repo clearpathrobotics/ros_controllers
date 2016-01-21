@@ -39,6 +39,8 @@
 
 #include <cmath>
 
+#include <numeric>
+
 #include <tf/transform_datatypes.h>
 
 #include <urdf_parser/urdf_parser.h>
@@ -121,7 +123,8 @@ namespace diff_drive_controller
 
   DiffDriveController::DiffDriveController()
     : open_loop_(false)
-    , position_feedback_(true)
+    , pose_from_joint_position_(true)
+    , twist_from_joint_position_(false)
     , command_struct_()
     , dynamic_params_struct_()
     , wheel_separation_(0.0)
@@ -182,10 +185,18 @@ namespace diff_drive_controller
     ROS_INFO_STREAM_NAMED(name_, "Odometry will be computed in "
                           << (open_loop_ ? "open" : "close") << " loop.");
 
-    controller_nh.param("position_feedback", position_feedback_, position_feedback_);
+    controller_nh.param("pose_from_joint_position", pose_from_joint_position_, pose_from_joint_position_);
     ROS_DEBUG_STREAM_COND_NAMED(!open_loop_, name_,
-        "Odometry will be computed using the wheel " <<
-        (position_feedback_ ? "postion" : "velocity") << " feedback.");
+        "Odometry pose will be computed using the wheel joint " <<
+        (pose_from_joint_position_ ? "position" : "velocity") << " feedback.");
+
+    controller_nh.param("twist_from_joint_position", twist_from_joint_position_, twist_from_joint_position_);
+    ROS_DEBUG_STREAM_COND_NAMED(!open_loop_, name_,
+        "Odometry twist will be computed using the wheel joint " <<
+        (twist_from_joint_position_ ? "position" : "velocity") << " feedback.");
+
+    use_position_ =  pose_from_joint_position_ ||  twist_from_joint_position_;
+    use_velocity_ = !pose_from_joint_position_ || !twist_from_joint_position_;
 
     controller_nh.param("wheel_separation_multiplier",
         wheel_separation_multiplier_, wheel_separation_multiplier_);
@@ -467,58 +478,98 @@ namespace diff_drive_controller
     odometry_.setMeasCovarianceParams(k_l_, k_r_);
 
     // COMPUTE AND PUBLISH ODOMETRY
+    // Read wheel joint positions and velocities:
+    for (size_t i = 0; i < wheel_joints_size_; ++i)
+    {
+      left_positions_[i]  = left_wheel_joints_[i].getPosition();
+      right_positions_[i] = right_wheel_joints_[i].getPosition();
+
+      left_velocities_[i]  = left_wheel_joints_[i].getVelocity();
+      right_velocities_[i] = right_wheel_joints_[i].getVelocity();
+    }
+
+    // Check for NaNs on wheel joint positions if we're going to use them:
+    if (use_position_)
+    {
+      for (size_t i = 0; i < wheel_joints_size_; ++i)
+      {
+        if (std::isnan(left_positions_[i]) ||
+            std::isnan(right_positions_[i]))
+        {
+          // @todo add a diagnostic message
+          return;
+        }
+      }
+    }
+
+    // Check for NaNs on wheel joint velocities if we're going to use them:
+    if (use_velocity_)
+    {
+      for (size_t i = 0; i < wheel_joints_size_; ++i)
+      {
+        if (std::isnan(left_velocities_[i]) ||
+            std::isnan(right_velocities_[i]))
+        {
+          // @todo add a diagnostic message
+          return;
+        }
+      }
+    }
+
+    // Compute wheel joints positions estimated from the velocities:
+    for (size_t i = 0; i < wheel_joints_size_; ++i)
+    {
+      left_positions_estimated_[i] += left_velocities_[i] * period.toSec();
+      right_positions_estimated_[i] += right_velocities_[i] * period.toSec();
+    }
+
+    // Compute wheel joints velocities estimated from the positions:
+    for (size_t i = 0; i < wheel_joints_size_; ++i)
+    {
+      left_velocities_estimated_[i] = (left_positions_[i] - left_positions_previous_[i]) / period.toSec();
+      right_velocities_estimated_[i] = (right_positions_[i] - right_positions_previous_[i]) / period.toSec();
+    }
+
+    // Compute wheel joints poisitions average per side:
+    const double left_position_average  = std::accumulate(left_positions_.begin(), left_positions_.end(), 0.0) / wheel_joints_size_;
+    const double right_position_average = std::accumulate(right_positions_.begin(), right_positions_.end(), 0.0) / wheel_joints_size_;
+
+    // Compute wheel joints velocities average per side:
+    const double left_velocity_average  = std::accumulate(left_velocities_.begin(), left_velocities_.end(), 0.0) / wheel_joints_size_;
+    const double right_velocity_average = std::accumulate(right_velocities_.begin(), right_velocities_.end(), 0.0) / wheel_joints_size_;
+
+    // Compute wheel joints positions estimated average per side:
+    const double left_position_estimated_average  = std::accumulate(left_positions_estimated_.begin(), left_positions_estimated_.end(), 0.0) / wheel_joints_size_;
+    const double right_position_estimated_average = std::accumulate(right_positions_estimated_.begin(), right_positions_estimated_.end(), 0.0) / wheel_joints_size_;
+
+    // Compute wheel joints velocities estimated average per side:
+    const double left_velocity_estimated_average  = std::accumulate(left_velocities_estimated_.begin(), left_velocities_estimated_.end(), 0.0) / wheel_joints_size_;
+    const double right_velocity_estimated_average = std::accumulate(right_velocities_estimated_.begin(), right_velocities_estimated_.end(), 0.0) / wheel_joints_size_;
+
+    // Set the wheel joint position that will be used to compute the pose:
+    const double left_position  = pose_from_joint_position_ ? left_position_average  : left_position_estimated_average;
+    const double right_position = pose_from_joint_position_ ? right_position_average : right_position_estimated_average;
+
+    // Set the wheel joint velocity that will be used to compute the twist:
+    const double left_velocity  = twist_from_joint_position_ ? left_velocity_estimated_average  : left_velocity_average;
+    const double right_velocity = twist_from_joint_position_ ? right_velocity_estimated_average : right_velocity_average;
+
+    // Update odometry:
     if (open_loop_)
     {
       odometry_.updateOpenLoop(last0_cmd_.lin, last0_cmd_.ang, time);
     }
     else
     {
-      if (position_feedback_)
-      {
-        double left_pos  = 0.0;
-        double right_pos = 0.0;
-        for (size_t i = 0; i < wheel_joints_size_; ++i)
-        {
-          const double lp = left_wheel_joints_[i].getPosition();
-          const double rp = right_wheel_joints_[i].getPosition();
-          if (std::isnan(lp) || std::isnan(rp))
-            return;
-
-          left_pos  += lp;
-          right_pos += rp;
-        }
-        left_pos  /= wheel_joints_size_;
-        right_pos /= wheel_joints_size_;
-
-        // Estimate linear and angular velocity using joint position information
-        odometry_.updateCloseLoop(left_pos, right_pos, time);
-      }
-      else
-      {
-        double left_vel  = 0.0;
-        double right_vel = 0.0;
-        for (size_t i = 0; i < wheel_joints_size_; ++i)
-        {
-          const double lv = left_wheel_joints_[i].getVelocity();
-          const double rv = right_wheel_joints_[i].getVelocity();
-          if (std::isnan(lv) || std::isnan(rv))
-            return;
-
-          left_vel  += lv;
-          right_vel += rv;
-        }
-        left_vel  /= wheel_joints_size_;
-        right_vel /= wheel_joints_size_;
-
-        // Estimate linear and angular velocity using joint velocity information
-        odometry_.updateCloseLoopFromVelocity(left_vel, right_vel, time);
-      }
+      odometry_.updateCloseLoop(left_position, right_position, left_velocity, right_velocity, time);
     }
 
     // Publish odometry message
     const ros::Duration half_period(0.5 * period.toSec());
     if (last_odom_publish_time_ + publish_period_ < time + half_period)
     {
+      // @todo should be after the trylock
+      // and duplicate the condition for the odom and odom_tf!
       last_odom_publish_time_ = time;
 
       // Compute and store orientation info
@@ -570,6 +621,7 @@ namespace diff_drive_controller
     // Limit velocities and accelerations:
     const double cmd_dt(period.toSec());
 
+    // @todo add an option to limit the velocity considering the actual velocity
     limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, cmd_dt);
     limiter_ang_.limit(curr_cmd.ang, last0_cmd_.ang, last1_cmd_.ang, cmd_dt);
 
@@ -577,18 +629,18 @@ namespace diff_drive_controller
     last0_cmd_ = curr_cmd;
 
     // Compute wheels velocities:
-    const double vel_left  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
-    const double vel_right = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
+    const double left_velocity_command  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
+    const double right_velocity_command = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
 
     // Set wheels velocities:
     for (size_t i = 0; i < wheel_joints_size_; ++i)
     {
-      left_wheel_joints_[i].setCommand(vel_left);
-      right_wheel_joints_[i].setCommand(vel_right);
+      left_wheel_joints_[i].setCommand(left_velocity_command);
+      right_wheel_joints_[i].setCommand(right_velocity_command);
     }
 
     // Publish limited velocity command:
-    if (dynamic_params.publish_cmd_vel_limited && cmd_vel_limited_pub_->trylock())
+    if (publish_cmd_vel_limited_ && cmd_vel_limited_pub_->trylock())
     {
       cmd_vel_limited_pub_->msg_.header.stamp = time;
 
@@ -744,21 +796,15 @@ namespace diff_drive_controller
         state_pub_->unlockAndPublish();
       }
 
-      // Save wheel joints positions and velocities; needed to estimate the
-      // velocities and accelerations, respectively:
-      // @todo part of this should be outside of the if (publish_state_)
+      // Save wheel joints velocities, needed to estimate the accelerations:
       for (size_t i = 0; i < wheel_joints_size_; ++i)
       {
         // Left wheel joints:
-        left_positions_previous_[i] = left_positions_[i];
         left_velocities_previous_[i] = left_velocities_[i];
-
         left_velocities_estimated_previous_[i] = left_velocities_estimated_[i];
 
         // Right wheel joints:
-        right_positions_previous_[i] = right_positions_[i];
         right_velocities_previous_[i] = right_velocities_[i];
-
         right_velocities_estimated_previous_[i] = right_velocities_estimated_[i];
       }
 
@@ -770,6 +816,13 @@ namespace diff_drive_controller
 
       left_velocity_command_previous_ = left_velocity_command;
       right_velocity_command_previous_ = right_velocity_command;
+    }
+
+    // Save wheel joints positions, needed to estimate the velocities:
+    for (size_t i = 0; i < wheel_joints_size_; ++i)
+    {
+      left_positions_previous_[i] = left_positions_[i];
+      right_positions_previous_[i] = right_positions_[i];
     }
   }
 
