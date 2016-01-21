@@ -327,6 +327,9 @@ namespace diff_drive_controller
                           "Measurement Covariance Model params : k_l " << k_l_
                           << ", k_r " << k_r_);
 
+    dynamic_params_struct_.pose_from_joint_position = pose_from_joint_position_;
+    dynamic_params_struct_.twist_from_joint_position = twist_from_joint_position_;
+
     dynamic_params_struct_.wheel_separation_multiplier = wheel_separation_multiplier_;
 
     dynamic_params_struct_.left_wheel_radius_multiplier  = left_wheel_radius_multiplier_;
@@ -377,10 +380,10 @@ namespace diff_drive_controller
     state_pub_->msg_.actual.accelerations.resize(2 * wheel_joints_size_);
     state_pub_->msg_.actual.effort.resize(2 * wheel_joints_size_);
 
-    state_pub_->msg_.limiteded.positions.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.limiteded.velocities.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.limiteded.accelerations.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.limiteded.effort.resize(2 * wheel_joints_size_);
+    state_pub_->msg_.limited.positions.resize(2 * wheel_joints_size_);
+    state_pub_->msg_.limited.velocities.resize(2 * wheel_joints_size_);
+    state_pub_->msg_.limited.accelerations.resize(2 * wheel_joints_size_);
+    state_pub_->msg_.limited.effort.resize(2 * wheel_joints_size_);
 
     state_pub_->msg_.error.positions.resize(2 * wheel_joints_size_);
     state_pub_->msg_.error.velocities.resize(2 * wheel_joints_size_);
@@ -489,6 +492,9 @@ namespace diff_drive_controller
     //
     //   ...
     // }
+    pose_from_joint_position_ = dynamic_params.pose_from_joint_position;
+    twist_from_joint_position_ = dynamic_params.twist_from_joint_position;
+
     wheel_separation_multiplier_ = dynamic_params.wheel_separation_multiplier;
     left_wheel_radius_multiplier_ = dynamic_params.left_wheel_radius_multiplier;
     right_wheel_radius_multiplier_ = dynamic_params.right_wheel_radius_multiplier;
@@ -523,6 +529,9 @@ namespace diff_drive_controller
     }
 
     // Check for NaNs on wheel joint positions if we're going to use them:
+    use_position_ =  pose_from_joint_position_ ||  twist_from_joint_position_;
+    use_velocity_ = !pose_from_joint_position_ || !twist_from_joint_position_;
+
     if (use_position_)
     {
       for (size_t i = 0; i < wheel_joints_size_; ++i)
@@ -952,6 +961,9 @@ namespace diff_drive_controller
   void DiffDriveController::reconfigureCallback(
       DiffDriveControllerConfig& config, uint32_t level)
   {
+    dynamic_params_struct_.pose_from_joint_position = config.pose_from_joint_position;
+    dynamic_params_struct_.twist_from_joint_position = config.twist_from_joint_position;
+
     dynamic_params_struct_.wheel_separation_multiplier = config.wheel_separation_multiplier;
 
     dynamic_params_struct_.left_wheel_radius_multiplier  = config.left_wheel_radius_multiplier;
@@ -969,6 +981,8 @@ namespace diff_drive_controller
 
     ROS_DEBUG_STREAM_NAMED(name_,
                           "Reconfigured Odometry params. "
+                          << "pose odometry computed from: " << (dynamic_params_struct_.pose_from_joint_position ? "position" : "velocity") << ", "
+                          << "twist odometry computed from: " << (dynamic_params_struct_.twist_from_joint_position ? "position" : "velocity") << ", "
                           << "wheel separation:   " << dynamic_params_struct_.wheel_separation_multiplier << ", "
                           << "left wheel radius:  " << dynamic_params_struct_.left_wheel_radius_multiplier << ", "
                           << "right wheel radius: " << dynamic_params_struct_.left_wheel_radius_multiplier);
