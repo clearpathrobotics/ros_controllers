@@ -57,6 +57,8 @@
 #include <diff_drive_controller/speed_limiter.h>
 #include <diff_drive_controller/DiffDriveControllerConfig.h>
 
+#include <boost/timer/timer.hpp>
+
 #include <vector>
 #include <string>
 
@@ -178,12 +180,18 @@ namespace diff_drive_controller
     double left_velocity_estimated_average_previous_;
     double right_velocity_estimated_average_previous_;
 
-    double left_velocity_command_previous_;
-    double right_velocity_command_previous_;
+    double left_velocity_desired_previous_;
+    double right_velocity_desired_previous_;
+
+    double left_velocity_limited_previous_;
+    double right_velocity_limited_previous_;
 
     /// Dynamic reconfigure server related:
     typedef dynamic_reconfigure::Server<DiffDriveControllerConfig> ReconfigureServer;
     boost::shared_ptr<ReconfigureServer> cfg_server_;
+
+    /// Timing related:
+    boost::timer::cpu_timer cpu_timer_;
 
     struct DynamicParams
     {

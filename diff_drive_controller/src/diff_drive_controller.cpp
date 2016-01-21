@@ -377,6 +377,11 @@ namespace diff_drive_controller
     state_pub_->msg_.actual.accelerations.resize(2 * wheel_joints_size_);
     state_pub_->msg_.actual.effort.resize(2 * wheel_joints_size_);
 
+    state_pub_->msg_.limiteded.positions.resize(2 * wheel_joints_size_);
+    state_pub_->msg_.limiteded.velocities.resize(2 * wheel_joints_size_);
+    state_pub_->msg_.limiteded.accelerations.resize(2 * wheel_joints_size_);
+    state_pub_->msg_.limiteded.effort.resize(2 * wheel_joints_size_);
+
     state_pub_->msg_.error.positions.resize(2 * wheel_joints_size_);
     state_pub_->msg_.error.velocities.resize(2 * wheel_joints_size_);
     state_pub_->msg_.error.accelerations.resize(2 * wheel_joints_size_);
@@ -439,8 +444,11 @@ namespace diff_drive_controller
     left_velocities_estimated_previous_.resize(wheel_joints_size_, 0.0);
     right_velocities_estimated_previous_.resize(wheel_joints_size_, 0.0);
 
-    left_velocity_command_previous_ = 0.0;
-    right_velocity_command_previous_ = 0.0;
+    left_velocity_desired_previous_ = 0.0;
+    right_velocity_desired_previous_ = 0.0;
+
+    left_velocity_limited_previous_ = 0.0;
+    right_velocity_limited_previous_ = 0.0;
 
     // Get the joint object to use in the realtime loop
     for (int i = 0; i < wheel_joints_size_; ++i)
@@ -459,6 +467,12 @@ namespace diff_drive_controller
 
   void DiffDriveController::update(const ros::Time& time, const ros::Duration& period)
   {
+    // Start/Resume CPU timer to measure the control time:
+    if (publish_state_)
+    {
+      cpu_timer_.start();
+    }
+
     // UPDATE DYNAMIC PARAMS
     // Retreive dynamic params:
     DynamicParams dynamic_params = *(dynamic_params_.readFromRT());
@@ -651,6 +665,10 @@ namespace diff_drive_controller
       curr_cmd.ang = 0.0;
     }
 
+    // Compute desired (not limited) wheel velocity:
+    const double left_velocity_desired = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
+    const double right_velocity_desired = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrl;
+
     // Limit velocities and accelerations:
     // @todo add an option to limit the velocity considering the actual velocity
     limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, control_period);
@@ -660,14 +678,14 @@ namespace diff_drive_controller
     last0_cmd_ = curr_cmd;
 
     // Compute wheels velocities:
-    const double left_velocity_command  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
-    const double right_velocity_command = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
+    const double left_velocity_limited  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
+    const double right_velocity_limited = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
 
     // Set wheels velocities:
     for (size_t i = 0; i < wheel_joints_size_; ++i)
     {
-      left_wheel_joints_[i].setCommand(left_velocity_command);
-      right_wheel_joints_[i].setCommand(right_velocity_command);
+      left_wheel_joints_[i].setCommand(left_velocity_limited);
+      right_wheel_joints_[i].setCommand(right_velocity_limited);
     }
 
     // Publish limited velocity command:
@@ -688,13 +706,13 @@ namespace diff_drive_controller
       {
         state_pub_->msg_.header.stamp = time;
 
-        // Set left wheel joints desired, actual (and actual estimated) state:
+        // Set left wheel joints desired, actual (estimated), limited state:
         for (size_t i = 0; i < wheel_joints_size_; ++i)
         {
           // Desired state:
-          state_pub_->msg_.desired.accelerations[i] = (left_velocity_command - left_velocity_command_previous_) * control_frequency;
-          state_pub_->msg_.desired.velocities[i] = left_velocity_command;
-          state_pub_->msg_.desired.positions[i] += left_velocity_command * control_period;
+          state_pub_->msg_.desired.accelerations[i] = (left_velocity_desired - left_velocity_desired_previous_) * control_frequency;
+          state_pub_->msg_.desired.velocities[i] = left_velocity_desired;
+          state_pub_->msg_.desired.positions[i] += left_velocity_desired * control_period;
           state_pub_->msg_.desired.effort[i] = std::numeric_limits<double>::quiet_NaN();
 
           // Actual state:
@@ -712,15 +730,21 @@ namespace diff_drive_controller
           state_pub_->msg_.actual_estimated.velocities[i] = left_velocities_estimated_[i];
           state_pub_->msg_.actual_estimated.positions[i] = left_positions_estimated_[i];
           state_pub_->msg_.actual_estimated.effort[i] = state_pub_->msg_.actual.effort[i];
+
+          // Limited state:
+          state_pub_->msg_.limited.accelerations[i] = (left_velocity_limited - left_velocity_limited_previous_) * control_frequency;
+          state_pub_->msg_.limited.velocities[i] = left_velocity_limited;
+          state_pub_->msg_.limited.positions[i] += left_velocity_limited * control_period;
+          state_pub_->msg_.limited.effort[i] = std::numeric_limits<double>::quiet_NaN();
         }
 
-        // Set right wheel joints desired, actual (and actual estimated) state:
+        // Set right wheel joints desired, actual (estimated), limited state:
         for (size_t i = 0, j = wheel_joints_size_; i < wheel_joints_size_; ++i, ++j)
         {
           // Desired state:
-          state_pub_->msg_.desired.accelerations[j] = (right_velocity_command - right_velocity_command_previous_) * control_frequency;
-          state_pub_->msg_.desired.velocities[j] = right_velocity_command;
-          state_pub_->msg_.desired.positions[j] += right_velocity_command * control_period;
+          state_pub_->msg_.desired.accelerations[j] = (right_velocity_desired - right_velocity_desired_previous_) * control_frequency;
+          state_pub_->msg_.desired.velocities[j] = right_velocity_desired;
+          state_pub_->msg_.desired.positions[j] += right_velocity_desired * control_period;
           state_pub_->msg_.desired.effort[j] = std::numeric_limits<double>::quiet_NaN();
 
           // Actual state:
@@ -738,6 +762,12 @@ namespace diff_drive_controller
           state_pub_->msg_.actual_estimated.velocities[j] = right_velocities_estimated_[i];
           state_pub_->msg_.actual_estimated.positions[j] = right_positions_estimated_[i];
           state_pub_->msg_.actual_estimated.effort[j] = state_pub_->msg_.actual.effort[j];
+
+          // Limited state:
+          state_pub_->msg_.limited.accelerations[j] = (right_velocity_limited - right_velocity_limited_previous_) * control_frequency;
+          state_pub_->msg_.limited.velocities[j] = right_velocity_limited;
+          state_pub_->msg_.limited.positions[j] += right_velocity_limited * control_period;
+          state_pub_->msg_.limited.effort[j] = std::numeric_limits<double>::quiet_NaN();
         }
 
         // Set left wheel joints actual (and actual estimated) side average
@@ -772,6 +802,7 @@ namespace diff_drive_controller
         state_pub_->msg_.actual_estimated_side_average.positions[1] = right_position_estimated_average;
         state_pub_->msg_.actual_estimated_side_average.effort[1] = state_pub_->msg_.actual.effort[wheel_joints_size_];
 
+        // Set state error:
         for (size_t i = 0; i < 2 * wheel_joints_size_; ++i)
         {
           state_pub_->msg_.error.positions[i] =
@@ -792,14 +823,14 @@ namespace diff_drive_controller
           state_pub_->msg_.error_estimated.effort[i] =
             state_pub_->msg_.desired.effort[i] - state_pub_->msg_.actual_estimated.effort[i];
 
-          state_pub_->msg_.error_estimated.positions[i] =
-            state_pub_->msg_.desired.positions[i] - state_pub_->msg_.actual_estimated.positions[i];
-          state_pub_->msg_.error_estimated.velocities[i] =
-            state_pub_->msg_.desired.velocities[i] - state_pub_->msg_.actual_estimated.velocities[i];
-          state_pub_->msg_.error_estimated.accelerations[i] =
-            state_pub_->msg_.desired.accelerations[i] - state_pub_->msg_.actual_estimated.accelerations[i];
-          state_pub_->msg_.error_estimated.effort[i] =
-            state_pub_->msg_.desired.effort[i] - state_pub_->msg_.actual_estimated.effort[i];
+          state_pub_->msg_.error_side_average.positions[i] =
+            state_pub_->msg_.desired.positions[i] - state_pub_->msg_.actual_side_average.positions[i];
+          state_pub_->msg_.error_side_average.velocities[i] =
+            state_pub_->msg_.desired.velocities[i] - state_pub_->msg_.actual_side_average.velocities[i];
+          state_pub_->msg_.error_side_average.accelerations[i] =
+            state_pub_->msg_.desired.accelerations[i] - state_pub_->msg_.actual_side_average.accelerations[i];
+          state_pub_->msg_.error_side_average.effort[i] =
+            state_pub_->msg_.desired.effort[i] - state_pub_->msg_.actual_side_average.effort[i];
 
           state_pub_->msg_.error_estimated_side_average.positions[i] =
             state_pub_->msg_.desired.positions[i] - state_pub_->msg_.actual_estimated_side_average.positions[i];
@@ -811,6 +842,7 @@ namespace diff_drive_controller
             state_pub_->msg_.desired.effort[i] - state_pub_->msg_.actual_estimated_side_average.effort[i];
         }
 
+        // Set time from start:
         state_pub_->msg_.desired.time_from_start = ros::Duration(dt);
         state_pub_->msg_.actual.time_from_start = ros::Duration(control_period);
         state_pub_->msg_.error.time_from_start = state_pub_->msg_.actual.time_from_start;
@@ -824,9 +856,17 @@ namespace diff_drive_controller
         state_pub_->msg_.actual_estimated_side_average.time_from_start = state_pub_->msg_.actual.time_from_start;
         state_pub_->msg_.error_estimated_side_average.time_from_start = state_pub_->msg_.actual_estimated_side_average.time_from_start;
 
+        // Set control period (update method):
         state_pub_->msg_.control_period_desired = control_period_desired_;
         state_pub_->msg_.control_period_actual  = period.toSec();
         state_pub_->msg_.control_period_error   = state_pub_->msg_.control_period_desired - state_pub_->msg_.control_period_actual;
+
+        // Set control wall, user and system time:
+        boost::timer::cpu_times control_times = cpu_timer_.elapsed();
+
+        state_pub_->msg_.control_time_wall   = 1e-9 * control_times.wall;
+        state_pub_->msg_.control_time_user   = 1e-9 * control_times.user;
+        state_pub_->msg_.control_time_system = 1e-9 * control_times.system;
 
         state_pub_->unlockAndPublish();
       }
@@ -849,8 +889,11 @@ namespace diff_drive_controller
       left_velocity_estimated_average_previous_ = left_velocity_estimated_average;
       right_velocity_estimated_average_previous_ = right_velocity_estimated_average;
 
-      left_velocity_command_previous_ = left_velocity_command;
-      right_velocity_command_previous_ = right_velocity_command;
+      left_velocity_desired_previous_ = left_velocity_desired;
+      right_velocity_desired_previous_ = right_velocity_desired;
+
+      left_velocity_limited_previous_ = left_velocity_limited;
+      right_velocity_limited_previous_ = right_velocity_limited;
     }
 
     // Save wheel joints positions, needed to estimate the velocities:

@@ -57,10 +57,10 @@ TEST_F(DiffDriveControllerTest, testError)
   const size_t num_joints = state.error.positions.size();
   for (size_t i = 0; i < num_joints; ++i)
   {
-    EXPECT_EQ(state.error.positions[i], state.desired.positions[i] - state.actual.positions[i]);
-    EXPECT_EQ(state.error.velocities[i], state.desired.velocities[i] - state.actual.velocities[i]);
-    EXPECT_EQ(state.error.accelerations[i], state.desired.accelerations[i] - state.actual.accelerations[i]);
-    EXPECT_EQ(state.error.effort[i], state.desired.effort[i] - state.actual.effort[i]);
+    EXPECT_EQ(state.error.positions[i], state.actual.positions[i] - state.desired.positions[i]);
+    EXPECT_EQ(state.error.velocities[i], state.actual.velocities[i] - state.desired.velocities[i]);
+    EXPECT_EQ(state.error.accelerations[i], state.actual.accelerations[i] - state.desired.accelerations[i]);
+    EXPECT_EQ(state.error.effort[i], state.actual.effort[i] - state.desired.effort[i]);
   }
 }
 
