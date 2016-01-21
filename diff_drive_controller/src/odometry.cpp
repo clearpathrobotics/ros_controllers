@@ -233,13 +233,25 @@ namespace diff_drive_controller
     return true;
   }
 
-  void Odometry::updateMeasCovariance(double v_l, double v_r)
+  void Odometry::updateMeasCovariance(const double dp_l, const double dp_r)
   {
     /// Compute Measurement Covariance Model:
     // @todo This can be extended to support lateral slippage
     // k_s_ * [see/find Olson notes]
-    meas_covariance_.diagonal() << k_l_ * std::abs(v_l),
-                                   k_r_ * std::abs(v_r);
+    //
+    // @todo extend this to include a dp_l_min_, dp_r_min_, which
+    // should be relate with the resolution of the encoder on the joint;
+    // if we use the resolution, we have this relation:
+    // dp_*_min_ = dp_*_resolution_ / 2
+    //
+    // the parameter could be called:
+    // left_wheel_resolution, right_wheel_resolution
+    // in [rad]
+    const double dp_std_l = k_l_ * dp_l;
+    const double dp_std_r = k_r_ * dp_r;
+
+    meas_covariance_.diagonal() << dp_std_l * dp_std_l,
+                                   dp_std_r * dp_std_r;
   }
 
   void Odometry::setWheelParams(const double wheel_separation,
