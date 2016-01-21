@@ -42,13 +42,16 @@
 #include <diff_drive_controller/odometry.h>
 
 #include <diff_drive_controller/autodiff_integrate_function.h>
+#include <diff_drive_controller/analytic_integrate_function.h>
+
+#include <diff_drive_controller/direct_kinematics_integrate_functor.h>
+
+#include <diff_drive_controller/euler_integrate_functor.h>
+#include <diff_drive_controller/runge_kutta_2_integrate_functor.h>
+#include <diff_drive_controller/exact_integrate_functor.h>
 
 #include <diff_drive_controller/linear_meas_covariance_model.h>
 #include <diff_drive_controller/quadratic_meas_covariance_model.h>
-
-#include <diff_drive_controller/direct_kinematics_integrate_functor.h>
-#include <diff_drive_controller/runge_kutta_2_integrate_functor.h>
-#include <diff_drive_controller/exact_integrate_functor.h>
 
 #include <Eigen/Core>
 

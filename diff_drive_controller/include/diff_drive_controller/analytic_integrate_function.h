@@ -36,18 +36,19 @@
  * Author: Enrique Fernández
  */
 
-#ifndef INTEGRATE_FUNCTION_H_
-#define INTEGRATE_FUNCTION_H_
+#ifndef ANALYTIC_INTEGRATE_FUNCTION_H_
+#define ANALYTIC_INTEGRATE_FUNCTION_H_
 
-#include <Eigen/Core>
+#include <diff_drive_controller/integrate_function.h>
 
 namespace diff_drive_controller
 {
 
   /**
-   * \brief Integrate function
+   * \brief Integrate function, which computes jacobians analytically
    */
-  class IntegrateFunction
+  template <template <typename> class IntegrateFunctor, typename Functor>
+  class AnalyticIntegrateFunction : public IntegrateFunction
   {
     public:
       /// Pose and measurement jacobian types:
@@ -56,11 +57,10 @@ namespace diff_drive_controller
 
       /**
        * \brief Constructor
+       * \param [in] functor Integrate functor
        */
-      IntegrateFunction()
-      {}
-
-      virtual ~IntegrateFunction()
+      AnalyticIntegrateFunction(IntegrateFunctor<Functor>* functor)
+        : functor_(functor)
       {}
 
       /**
@@ -72,7 +72,10 @@ namespace diff_drive_controller
        * \param[in] v_r Right wheel velocity (displacement)
        */
       virtual void operator()(double& x, double& y, double& Y,
-          const double& v_l, const double& v_r) const = 0;
+          const double& v_l, const double& v_r) const
+      {
+        (*functor_)(x, y, Y, v_l, v_r);
+      }
 
       /**
        * \brief Integrates and computes the jacobians
@@ -86,7 +89,11 @@ namespace diff_drive_controller
        */
       virtual void operator()(double& x, double& y, double& Y,
           const double& v_l, const double& v_r,
-          PoseJacobian& J_pose, MeasJacobian& J_meas) const = 0;
+          PoseJacobian& J_pose, MeasJacobian& J_meas) const
+      {
+        /// Integrate and compute the partial derivatives:
+        (*functor_)(x, y, Y, v_l, v_r, J_pose, J_meas);
+      }
 
       /**
        * \brief Sets the wheel parameters: radius and separation
@@ -96,10 +103,17 @@ namespace diff_drive_controller
        * \param[in] right_wheel_radius Right wheel radius [m]
        */
       virtual void setWheelParams(const double wheel_separation,
-            const double left_wheel_radius,
-            const double right_wheel_radius) = 0;
+          const double left_wheel_radius, const double right_wheel_radius)
+      {
+        functor_->setWheelParams(wheel_separation,
+            left_wheel_radius, right_wheel_radius);
+      }
+
+    private:
+      /// Integrate functor:
+      boost::shared_ptr< IntegrateFunctor<Functor> > functor_;
   };
 
 }  // namespace diff_drive_controller
 
-#endif /* INTEGRATE_FUNCTION_H_ */
+#endif /* ANALYTIC_INTEGRATE_FUNCTION_H_ */
