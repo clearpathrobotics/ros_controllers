@@ -132,8 +132,9 @@ namespace diff_drive_controller
     , wheel_separation_multiplier_(1.0)
     , left_wheel_radius_multiplier_(1.0)
     , right_wheel_radius_multiplier_(1.0)
-    , k_l_(1.0)
-    , k_r_(1.0)
+    , k_l_(0.1)
+    , k_r_(0.1)
+    , wheel_resolution_(0.0001)
     , cmd_vel_timeout_(0.5)
     , base_frame_id_("base_link")
     , enable_odom_tf_(true)
@@ -234,6 +235,21 @@ namespace diff_drive_controller
           "Taking absolute value: " << k_r_ << ".");
     }
 
+    controller_nh.param("wheel_resolution", wheel_resolution_, wheel_resolution_);
+
+    if (wheel_resolution_ < 0.0)
+    {
+      wheel_resolution_ = std::abs(k_l_);
+      ROS_ERROR_STREAM_NAMED(name_,
+          "Wheel resolution must be positive! "
+          "Taking absolute value: " << wheel_resolution_ << ".");
+    }
+    else if (wheel_resolution_ == 0.0)
+    {
+      ROS_WARN_STREAM_NAMED(name_,
+          "Wheel resolution is 0, but it's recommended to use a value > 0!");
+    }
+
     int velocity_rolling_window_size = 10;
     controller_nh.param("velocity_rolling_window_size", velocity_rolling_window_size, velocity_rolling_window_size);
     ROS_INFO_STREAM_NAMED(name_, "Velocity rolling window size of "
@@ -322,10 +338,11 @@ namespace diff_drive_controller
                           << ", left wheel radius "  << wrl
                           << ", right wheel radius " << wrr);
 
-    odometry_.setMeasCovarianceParams(k_l_, k_r_);
+    odometry_.setMeasCovarianceParams(k_l_, k_r_, wheel_resolution_);
     ROS_INFO_STREAM_NAMED(name_,
                           "Measurement Covariance Model params : k_l " << k_l_
-                          << ", k_r " << k_r_);
+                          << ", k_r " << k_r_
+                          << ", wheel resolution [rad] " << wheel_resolution_);
 
     dynamic_params_struct_.pose_from_joint_position = pose_from_joint_position_;
     dynamic_params_struct_.twist_from_joint_position = twist_from_joint_position_;
@@ -337,6 +354,8 @@ namespace diff_drive_controller
 
     dynamic_params_struct_.k_l = k_l_;
     dynamic_params_struct_.k_r = k_r_;
+
+    dynamic_params_struct_.wheel_resolution = wheel_resolution_;
 
     dynamic_params_struct_.publish_state = publish_state_;
     dynamic_params_struct_.publish_cmd_vel_limited = publish_cmd_vel_limited_;
@@ -502,6 +521,8 @@ namespace diff_drive_controller
     k_l_ = dynamic_params.k_l;
     k_r_ = dynamic_params.k_r;
 
+    wheel_resolution_ = dynamic_params.wheel_resolution;
+
     publish_state_ = dynamic_params.publish_state;
     publish_cmd_vel_limited_ = dynamic_params.publish_cmd_vel_limited;
 
@@ -515,7 +536,7 @@ namespace diff_drive_controller
 
     // Set the odometry parameters:
     odometry_.setWheelParams(ws, wrl, wrr);
-    odometry_.setMeasCovarianceParams(k_l_, k_r_);
+    odometry_.setMeasCovarianceParams(k_l_, k_r_, wheel_resolution_);
 
     // COMPUTE AND PUBLISH ODOMETRY
     // Read wheel joint positions and velocities:
@@ -612,6 +633,8 @@ namespace diff_drive_controller
     }
 
     // Publish odometry message:
+    bool twist_updated_ = false;
+
     const ros::Duration half_period(0.5 * control_period);
     if (last_odom_publish_time_ + publish_period_ < time + half_period &&
         odom_pub_->trylock())
@@ -620,7 +643,8 @@ namespace diff_drive_controller
       // Note that the twist must be computed at the same frequency that it gets
       // published, because otherwise the code that uses it cannot apply the
       // same period it was used to compute it.
-      odometry_.updateTwist((time - last_odom_tf_publish_time_).toSec());
+      odometry_.updateTwist(time);
+      twist_updated_ = true;
 
       last_odom_publish_time_ = time;
 
@@ -648,6 +672,19 @@ namespace diff_drive_controller
         last_odom_tf_publish_time_ + publish_period_ < time + half_period &&
         tf_odom_pub_->trylock())
     {
+      // Update twist:
+      // Note that the twist must be computed at the same frequency that it gets
+      // published, because otherwise the code that uses it cannot apply the
+      // same period it was used to compute it.
+      // Also note that we don't updat the twist twice in the same control
+      // cycle, so we don't update it for the odom TF if it's been already
+      // updated for the odom topic in this same cycle.
+      if (!twist_updated_)
+      {
+        odometry_.updateTwist(time);
+        twist_updated_ = true;
+      }
+
       last_odom_tf_publish_time_ = time;
 
       // Populate tf odometry frame message and publish:
@@ -972,6 +1009,8 @@ namespace diff_drive_controller
     dynamic_params_struct_.k_l = config.k_l;
     dynamic_params_struct_.k_r = config.k_r;
 
+    dynamic_params_struct_.wheel_resolution = config.wheel_resolution;
+
     dynamic_params_struct_.publish_state = config.publish_state;
     dynamic_params_struct_.publish_cmd_vel_limited = config.publish_cmd_vel_limited;
 
@@ -990,7 +1029,8 @@ namespace diff_drive_controller
     ROS_DEBUG_STREAM_NAMED(name_,
                           "Reconfigured Measurement Covariance Model params. "
                           << "k_l: " << dynamic_params_struct_.k_l << ", "
-                          << "k_r: " << dynamic_params_struct_.k_r);
+                          << "k_r: " << dynamic_params_struct_.k_r << ", "
+                          << "wheel resolution: " << dynamic_params_struct_.wheel_resolution);
 
     ROS_DEBUG_STREAM_NAMED(name_,
                           "Reconfigured Debug Publishers params. "

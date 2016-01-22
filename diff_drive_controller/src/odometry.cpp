@@ -58,6 +58,7 @@ namespace diff_drive_controller
 
   Odometry::Odometry(size_t velocity_rolling_window_size)
   : timestamp_(0.0)
+  , timestamp_twist_(0.0)
   , x_(0.0)
   , y_(0.0)
   , heading_(0.0)
@@ -72,6 +73,7 @@ namespace diff_drive_controller
   , right_wheel_radius_(0.0)
   , k_l_(1.0)
   , k_r_(1.0)
+  , wheel_resolution_(0.0)
   , left_position_previous_(0.0)
   , right_position_previous_(0.0)
   , velocity_rolling_window_size_(velocity_rolling_window_size)
@@ -89,8 +91,6 @@ namespace diff_drive_controller
     minimum_twist_covariance_.setIdentity();
     minimum_twist_covariance_ *= DEFAULT_MINIMUM_TWIST_COVARIANCE;
 
-    // There's no need to initialize the twist covariance because it's updated
-    // from scratch on each cycle, but it's safer to initialize it anyway:
     twist_covariance_ = minimum_twist_covariance_;
 
     pose_covariance_.setIdentity();
@@ -103,7 +103,7 @@ namespace diff_drive_controller
   {
     // Reset accumulators and timestamp:
     resetAccumulators();
-    timestamp_ = time;
+    timestamp_ = timestamp_twist_ = time;
   }
 
   bool Odometry::updateCloseLoop(
@@ -197,58 +197,91 @@ namespace diff_drive_controller
         J_meas * meas_covariance_ * J_meas.transpose();
   }
 
-  void Odometry::updateTwist(const double dt)
+  bool Odometry::updateTwist(const ros::Time& time)
   {
     /// We cannot estimate the speed with very small time intervals:
-    if (dt > 0.0001)
+    const double dt = (time - timestamp_twist_).toSec();
+    if (dt < 0.0001)
     {
-      /// Estimate speeds using a rolling mean to filter them out:
-      const double f = 1.0 / dt;
-
-      v_x_acc_(d_x_ * f);
-      v_y_acc_(d_y_ * f);
-      v_yaw_acc_(d_yaw_ * f);
-
-      v_x_   = bacc::rolling_mean(v_x_acc_);
-      v_y_   = bacc::rolling_mean(v_y_acc_);
-      v_yaw_ = bacc::rolling_mean(v_yaw_acc_);
-
-      /// Update twist covariance:
-      IntegrateFunction::PoseJacobian J_twist =
-         IntegrateFunction::PoseJacobian::Identity() * f;
-      twist_covariance_ = J_twist * incremental_pose_covariance_ * J_twist.transpose();
-
-      /// Add minimum (diagonal) covariance to avoid ill-conditioned covariance
-      /// matrices, i.e. with a very large condition number, which would make
-      /// inverse or Cholesky decomposition fail on many algorithms:
-      twist_covariance_ += minimum_twist_covariance_;
+      return false;
     }
+
+    timestamp_twist_ = time;
+
+    /// Estimate speeds using a rolling mean to filter them out:
+    const double f = 1.0 / dt;
+
+    v_x_acc_(d_x_ * f);
+    v_y_acc_(d_y_ * f);
+    v_yaw_acc_(d_yaw_ * f);
+
+    v_x_   = bacc::rolling_mean(v_x_acc_);
+    v_y_   = bacc::rolling_mean(v_y_acc_);
+    v_yaw_ = bacc::rolling_mean(v_yaw_acc_);
+
+    /// Update twist covariance:
+    // @todo twist covariance output looks very small now,
+    // for rocksteady and jackal!
+    IntegrateFunction::PoseJacobian J_twist =
+       IntegrateFunction::PoseJacobian::Identity() * f;
+    twist_covariance_ = J_twist * incremental_pose_covariance_ * J_twist.transpose();
+
+    /// Add minimum (diagonal) covariance to avoid ill-conditioned covariance
+    /// matrices, i.e. with a very large condition number, which would make
+    /// inverse or Cholesky decomposition fail on many algorithms:
+    twist_covariance_ += minimum_twist_covariance_;
 
     /// Reset incremental pose and its covariance:
     d_x_ = d_y_ = d_yaw_ = 0.0;
     incremental_pose_covariance_.setZero();
+
+    return true;
   }
 
   // @todo separate in functors with the book and other versions!
   void Odometry::updateMeasCovariance(const double dp_l, const double dp_r)
   {
     /// Compute Measurement Covariance Model:
-    // @todo This can be extended to support lateral slippage
-    // k_s_ * [see/find Olson notes]
-    //
-    // @todo extend this to include a dp_l_min_, dp_r_min_, which
-    // should be relate with the resolution of the encoder on the joint;
-    // if we use the resolution, we have this relation:
-    // dp_*_min_ = dp_*_resolution_ / 2
-    //
-    // the parameter could be called:
-    // left_wheel_resolution, right_wheel_resolution
-    // in [rad]
+    ///
+    /// This model is based on [Siegwart, 2004], but instead of using the
+    /// std::abs of the wheel position increment dp, it uses the squared
+    /// value of dp, so the proportional term (multiplied by k_*_) does NOT
+    /// depend on the control perdio dt (see explanation below).
+    ///
+    /// This is important because it makes the covariance model independent of
+    /// the control period dt. Since dp = v * dt, the variance actually gives:
+    ///
+    ///   dp^2 = (v * dt)^2 = v^2 * dt^2
+    ///
+    /// where dt^2 gets cancelled when the covariance propagation for the twist
+    /// is applied, i.e. the 1/dt jacobians pre- and post-multiply this
+    /// covariance model, so the control perdio dt cancels out:
+    ///
+    ///   (1/dt) * dt^2 * (1/dt) = dt^2 / dt^2 = 1
+    ///
+    /// If the wheel resolution (DC offset) term is used, the covariance model
+    /// would again vary with the control period dt because the wheel
+    /// resolution is constant and does NOT include/depend on dt.
+
+    /// Measurement (wheel position increment) covaraince model, proportional
+    /// to the wheel position increment for each wheel:
     const double dp_std_l = k_l_ * dp_l;
     const double dp_std_r = k_r_ * dp_r;
 
-    meas_covariance_.diagonal() << dp_std_l * dp_std_l,
-                                   dp_std_r * dp_std_r;
+    const double dp_var_l = dp_std_l * dp_std_l;
+    const double dp_var_r = dp_std_r * dp_std_r;
+
+    /// Wheel resolution covariance, which is like a DC offset equal to half of
+    /// the resolution, which is the theoretical average error:
+    const double dp_std_avg = 0.5 * wheel_resolution_;
+    const double dp_var_avg = dp_std_avg * dp_std_avg;
+
+    /// @todo This can be extended to support lateral slippage
+    /// k_s_ * [see/find Olson notes]
+
+    /// Set covariance matrix (diagonal):
+    meas_covariance_.diagonal() << dp_var_l + dp_var_avg,
+                                   dp_var_r + dp_var_avg;
   }
 
   void Odometry::setWheelParams(const double wheel_separation,
@@ -270,10 +303,13 @@ namespace diff_drive_controller
     resetAccumulators();
   }
 
-  void Odometry::setMeasCovarianceParams(const double k_l, const double k_r)
+  void Odometry::setMeasCovarianceParams(const double k_l, const double k_r,
+      const double wheel_resolution)
   {
     k_l_ = k_l;
     k_r_ = k_r;
+
+    wheel_resolution_ = wheel_resolution;
   }
 
   void Odometry::resetAccumulators()

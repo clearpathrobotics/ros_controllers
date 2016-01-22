@@ -138,10 +138,13 @@ namespace diff_drive_controller
      * \brief Update the odometry twist with the (internal) incremental pose,
      * since the last update/call to this method; this resets the (internal)
      * incremental pose
-     * \param[in] dt Time step/increment, used to divide the (internal)
-     *               incremental pose by dt and obtain the twist
+     * \param[in] time Current time, used to compute the time step/increment,
+     *                 which is used to divide the (internal) incremental pose
+     *                 by dt and obtain the twist
+     * \return true if twist is actually updated; it won't be updated if the
+     *         time step/increment is very small, to avoid division by zero
      */
-    void updateTwist(const double dt);
+    bool updateTwist(const ros::Time& time);
 
     /**
      * \brief Heading getter
@@ -256,8 +259,11 @@ namespace diff_drive_controller
      * \brief Sets the Measurement Covariance Model parameters: k_l and k_r
      * \param[in] k_l Left  wheel velocity multiplier
      * \param[in] k_r Right wheel velocity multiplier
+     * \param[in] wheel_resolution Wheel resolution [rad] (assumed the same for
+     *                             both wheels
      */
-    void setMeasCovarianceParams(const double k_l, const double k_r);
+    void setMeasCovarianceParams(const double k_l, const double k_r,
+        const double wheel_resolution);
 
     /**
      * \brief Velocity rolling window size setter
@@ -307,6 +313,10 @@ namespace diff_drive_controller
     /// Current timestamp:
     ros::Time timestamp_;
 
+    /// Timestamp for last twist computed, ie. since when the (internal)
+    /// incremental pose has been computed:
+    ros::Time timestamp_twist_;
+
     /// Current pose:
     double x_;        //   [m]
     double y_;        //   [m]
@@ -318,9 +328,9 @@ namespace diff_drive_controller
     double d_yaw_;  // [rad]
 
     /// Current velocity:
-    double v_x_;   //   [m/s]
-    double v_y_;   //   [m/s]
-    double v_yaw_; // [rad/s]
+    double v_x_;    //   [m/s]
+    double v_y_;    //   [m/s]
+    double v_yaw_;  // [rad/s]
 
     /// Pose covariance:
     PoseCovariance pose_covariance_;
@@ -343,6 +353,8 @@ namespace diff_drive_controller
     /// Measurement Covariance Model parameters:
     double k_l_;
     double k_r_;
+
+    double wheel_resolution_;  // [rad]
 
     /// Previous wheel position/state [rad]:
     double left_position_previous_;
