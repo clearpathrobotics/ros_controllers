@@ -569,6 +569,12 @@ namespace diff_drive_controller
     if (last_odom_publish_time_ + publish_period_ < time + half_period &&
         odom_pub_->trylock())
     {
+      // Update twist:
+      // Note that the twist must be computed at the same frequency that it gets
+      // published, because otherwise the code that uses it cannot apply the
+      // same period it was used to compute it.
+      odometry_.updateTwist((time - last_odom_tf_publish_time_).toSec());
+
       last_odom_publish_time_ = time;
 
       // Populate odom message and publish:
