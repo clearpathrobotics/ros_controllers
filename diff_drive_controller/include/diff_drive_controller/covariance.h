@@ -347,6 +347,54 @@ T conditionNumber(const Eigen::Matrix<T, N, N>& M)
          svd.singularValues().maxCoeff() / s_min;
 }
 
+/**
+ * \brief Change the condition number of a matrix M to a given one (> 1.0)
+ * \param[in, out] M Positive semi-definite matrix
+ * \param[in] condition_number Desired/Target condition number (> 1.0)
+ */
+template <typename T, int N>
+void changeConditionNumber(Eigen::Matrix<T, N, N>& M,
+    const T condition_number)
+{
+  // By definition the condition number is always greater than 1.0 because it's
+  // defined as the abs(s_max / s_min), i.e. the absolute values of the quotient
+  // of the maximum s_max and minium s_min singular values, using SVD
+  // decomposition, and s_max >= s_min, by definition.
+  // Note that the case of s_max == s_min gives a condition number of 1.0,
+  // which is not allowed because it's impossible to change the condition
+  // number to exactly 1.0.
+  assert(condition_number > T(1));
+
+  // We change the condition number by modifying the eigenvalues, which must be
+  // the same as the singular values. This is only true if the matrix M is
+  // positive semi-definite, which is the case of covariance matrices:
+  assert(isPositiveDefinite(M, semi_tag()));
+
+  // Compute the eigendecomposition:
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix<T, N, N> > eigensolver(M);
+
+  // This should be true because the matrix M is positive semi-definite:
+  assert(eigensolver.info() == Eigen::Success);
+  assert((eigensolver.eigenvalues().array() > T(0)).all());
+
+  // Compute the modifying factor to change the eigenvalues, so the condition
+  // number desired is obtained:
+  const double lambda_min = eigensolver.eigenvalues().minCoeff();
+  const double lambda_max = eigensolver.eigenvalues().maxCoeff();
+
+  const double f = std::abs(condition_number * lambda_min - lambda_max) /
+                   (condition_number - T(1));
+
+  // Create a modified diagonal matrix with the modified eigenvalues, which are
+  // equivalent to the singular values:
+  Eigen::Matrix<T, N, N> D = eigensolver.eigenvalues().asDiagonal();
+  D.diagonal() = D.diagonal().array() + f;
+
+  // Reconstruct matrix with the modified eigenvalues, which are equivalent to
+  // the singular values:
+  M = eigensolver.eigenvectors() * D * eigensolver.eigenvectors().transpose();
+}
+
 }
 
 #endif /* COVARIANCE_H_ */
