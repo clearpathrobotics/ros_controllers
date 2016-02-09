@@ -211,6 +211,11 @@ namespace diff_drive_controller
     /// Add minimum (diagonal) covariance to avoid ill-conditioned covariance
     /// matrices, i.e. with a very large condition number, which would make
     /// inverse or Cholesky decomposition fail on many algorithms:
+    // @todo change to use the changeConditionNumber function
+    // first check the condition number we usually have here, reporting it in
+    // the state, and the simply do:
+    // changeConditionNumber(twist_covariance_, twist_covariance_condition_number_);
+    // and remove all the minimum_twist_covariance stuff
     twist_covariance_ += minimum_twist_covariance_;
 
     /// Reset incremental pose and its covariance:
