@@ -37,6 +37,10 @@ float64 control_period_desired
 float64 control_period_actual
 float64 control_period_error
 
+# Control period estimated from the time differences:
+float64 control_period_actual_estimated
+float64 control_period_error_estimated
+
 # Control time (of the actual code):
 # Note that the resolution of the wall time is approx. 0.5us, but the user and
 # system is only 10ms. See:

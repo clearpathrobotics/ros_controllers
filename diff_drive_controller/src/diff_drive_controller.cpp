@@ -126,6 +126,7 @@ namespace diff_drive_controller
     : open_loop_(false)
     , pose_from_joint_position_(config_default_.pose_from_joint_position)
     , twist_from_joint_position_(config_default_.twist_from_joint_position)
+    , period_from_time_(config_default_.period_from_time)
     , command_struct_()
     , dynamic_params_struct_()
     , wheel_separation_(0.0)
@@ -201,6 +202,11 @@ namespace diff_drive_controller
 
     use_position_ =  pose_from_joint_position_ ||  twist_from_joint_position_;
     use_velocity_ = !pose_from_joint_position_ || !twist_from_joint_position_;
+
+    controller_nh.param("period_from_time", period_from_time_, period_from_time_);
+    ROS_INFO_STREAM_NAMED(name_,
+        "Control period will be computed using the " <<
+        (period_from_time_ ? "time" : "period") << ".");
 
     controller_nh.param("wheel_separation_multiplier",
         wheel_separation_multiplier_, wheel_separation_multiplier_);
@@ -352,6 +358,8 @@ namespace diff_drive_controller
     dynamic_params_struct_.pose_from_joint_position = pose_from_joint_position_;
     dynamic_params_struct_.twist_from_joint_position = twist_from_joint_position_;
 
+    dynamic_params_struct_.period_from_time = period_from_time_;
+
     dynamic_params_struct_.wheel_separation_multiplier = wheel_separation_multiplier_;
 
     dynamic_params_struct_.left_wheel_radius_multiplier  = left_wheel_radius_multiplier_;
@@ -375,6 +383,8 @@ namespace diff_drive_controller
     DiffDriveControllerConfig config;
     config.pose_from_joint_position = pose_from_joint_position_;
     config.twist_from_joint_position = twist_from_joint_position_;
+
+    config.period_from_time = period_from_time_;
 
     config.wheel_separation_multiplier = wheel_separation_multiplier_;
 
@@ -540,6 +550,8 @@ namespace diff_drive_controller
     pose_from_joint_position_ = dynamic_params.pose_from_joint_position;
     twist_from_joint_position_ = dynamic_params.twist_from_joint_position;
 
+    period_from_time_ = dynamic_params.period_from_time;
+
     wheel_separation_multiplier_ = dynamic_params.wheel_separation_multiplier;
     left_wheel_radius_multiplier_ = dynamic_params.left_wheel_radius_multiplier;
     right_wheel_radius_multiplier_ = dynamic_params.right_wheel_radius_multiplier;
@@ -606,10 +618,11 @@ namespace diff_drive_controller
       }
     }
 
+    // Compute the period estimated from time:
+    const ros::Duration period_estimated = time - time_previous_;
+
     // Compute/Set control period and frequency (desired/expected or real):
-    // @todo also allow to compute the period as time - time_previous_, because
-    // they can be different
-    const double control_period    = control_period_desired_    > 0.0 ? control_period_desired_    : period.toSec();
+    const double control_period    = control_period_desired_    > 0.0 ? control_period_desired_    : (period_from_time_ ? period_estimated.toSec() : period.toSec());
     const double control_frequency = control_frequency_desired_ > 0.0 ? control_frequency_desired_ : 1.0 / control_period;
 
     // Compute wheel joints positions estimated from the velocities:
@@ -925,6 +938,9 @@ namespace diff_drive_controller
         state_pub_->msg_.control_period_actual  = period.toSec();
         state_pub_->msg_.control_period_error   = state_pub_->msg_.control_period_desired - state_pub_->msg_.control_period_actual;
 
+        state_pub_->msg_.control_period_actual_estimated = period_estimated.toSec();
+        state_pub_->msg_.control_period_error_estimated = state_pub_->msg_.control_period_desired - state_pub_->msg_.control_period_actual_estimated;
+
         // Set control wall, user and system time:
         boost::timer::cpu_times control_times = cpu_timer_.elapsed();
 
@@ -966,6 +982,9 @@ namespace diff_drive_controller
       left_positions_previous_[i] = left_positions_[i];
       right_positions_previous_[i] = right_positions_[i];
     }
+
+    // Save time, needed to estimate the period:
+    time_previous_ = time;
   }
 
   void DiffDriveController::starting(const ros::Time& time)
@@ -973,7 +992,7 @@ namespace diff_drive_controller
     brake();
 
     // Register starting time used to keep fixed rate
-    last_odom_publish_time_ = last_odom_tf_publish_time_ = time;
+    last_odom_publish_time_ = last_odom_tf_publish_time_ = time_previous_ = time;
 
     odometry_.init();
   }
@@ -1019,6 +1038,8 @@ namespace diff_drive_controller
     dynamic_params_struct_.pose_from_joint_position = config.pose_from_joint_position;
     dynamic_params_struct_.twist_from_joint_position = config.twist_from_joint_position;
 
+    dynamic_params_struct_.period_from_time = config.period_from_time;
+
     dynamic_params_struct_.wheel_separation_multiplier = config.wheel_separation_multiplier;
 
     dynamic_params_struct_.left_wheel_radius_multiplier  = config.left_wheel_radius_multiplier;
@@ -1040,6 +1061,7 @@ namespace diff_drive_controller
                           "Reconfigured Odometry params. "
                           << "pose odometry computed from: " << (dynamic_params_struct_.pose_from_joint_position ? "position" : "velocity") << ", "
                           << "twist odometry computed from: " << (dynamic_params_struct_.twist_from_joint_position ? "position" : "velocity") << ", "
+                          << "period computed from: " << (dynamic_params_struct_.period_from_time ? "time" : "period") << ", "
                           << "wheel separation:   " << dynamic_params_struct_.wheel_separation_multiplier << ", "
                           << "left wheel radius:  " << dynamic_params_struct_.left_wheel_radius_multiplier << ", "
                           << "right wheel radius: " << dynamic_params_struct_.left_wheel_radius_multiplier);
