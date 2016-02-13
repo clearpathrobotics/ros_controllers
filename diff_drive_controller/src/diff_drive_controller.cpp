@@ -372,7 +372,7 @@ namespace diff_drive_controller
     setOdomPubFields(root_nh, controller_nh);
 
     // Set dynamic reconfigure params defaults to the static params provided:
-    DiffDriveControllerConfig config;
+    DiffDriveControllerConfig config(config_default_);
     config.pose_from_joint_position = pose_from_joint_position_;
     config.twist_from_joint_position = twist_from_joint_position_;
 
@@ -389,7 +389,7 @@ namespace diff_drive_controller
     config.publish_state = publish_state_;
     config.publish_cmd_vel_limited = publish_cmd_vel_limited_;
 
-    dynamic_params_struct_.control_frequency_desired = config.control_frequency_desired;
+    config.control_frequency_desired = control_frequency_desired_;
 
     // Set dynamic reconfigure server config and callback:
     cfg_server_.reset(new ReconfigureServer(controller_nh));
