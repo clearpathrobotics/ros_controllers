@@ -124,6 +124,8 @@ namespace diff_drive_controller
     bool pose_from_joint_position_;
     bool twist_from_joint_position_;
 
+    bool period_from_time_;
+
     bool use_position_;
     bool use_velocity_;
 
@@ -186,6 +188,8 @@ namespace diff_drive_controller
     double left_velocity_limited_previous_;
     double right_velocity_limited_previous_;
 
+    ros::Time time_previous_;
+
     /// Dynamic reconfigure server related:
     typedef dynamic_reconfigure::Server<DiffDriveControllerConfig> ReconfigureServer;
     boost::shared_ptr<ReconfigureServer> cfg_server_;
@@ -199,6 +203,8 @@ namespace diff_drive_controller
     {
       bool pose_from_joint_position;
       bool twist_from_joint_position;
+
+      bool period_from_time;
 
       double wheel_separation_multiplier;
       double left_wheel_radius_multiplier;
@@ -217,6 +223,7 @@ namespace diff_drive_controller
       DynamicParams()
         : pose_from_joint_position(true)
         , twist_from_joint_position(false)
+        , period_from_time(false)
         , wheel_separation_multiplier(1.0)
         , left_wheel_radius_multiplier(1.0)
         , right_wheel_radius_multiplier(1.0)
