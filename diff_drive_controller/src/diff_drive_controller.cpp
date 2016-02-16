@@ -621,8 +621,17 @@ namespace diff_drive_controller
     // Compute the period estimated from time:
     const ros::Duration period_estimated = time - time_previous_;
 
-    // Compute/Set control period and frequency (desired/expected or real):
-    const double control_period    = control_period_desired_    > 0.0 ? control_period_desired_    : (period_from_time_ ? period_estimated.toSec() : period.toSec());
+    // Compute/Set control period (desired/expected or real):
+    const double control_period = control_period_desired_ > 0.0 ? control_period_desired_ : (period_from_time_ ? period_estimated.toSec() : period.toSec());
+
+    // Skip cycle if control period <= 0.0:
+    if (control_period <= 0.0)
+    {
+      // @todo add a diagnostic message
+      return;
+    }
+
+    // Compute/Set control frequency (desired/expected or real):
     const double control_frequency = control_frequency_desired_ > 0.0 ? control_frequency_desired_ : 1.0 / control_period;
 
     // Compute wheel joints positions estimated from the velocities:
