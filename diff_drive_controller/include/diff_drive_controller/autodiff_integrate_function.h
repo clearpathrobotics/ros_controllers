@@ -60,10 +60,9 @@ namespace diff_drive_controller
 
       /**
        * \brief Constructor
-       * \param[in] functor Integrate functor
        */
-      AutoDiffIntegrateFunction(IntegrateFunctor<Functor>* functor)
-        : functor_(functor)
+      AutoDiffIntegrateFunction()
+        : functor_()
       {}
 
       /**
@@ -77,7 +76,7 @@ namespace diff_drive_controller
       virtual void operator()(double& x, double& y, double& Y,
           const double& v_l, const double& v_r) const
       {
-        (*functor_)(x, y, Y, v_l, v_r);
+        functor_(x, y, Y, v_l, v_r);
       }
 
       /**
@@ -104,7 +103,7 @@ namespace diff_drive_controller
         ceres::Jet<double, 5> jet_v_r(v_r, 4);
 
         /// Integrate and compute the partial derivatives:
-        (*functor_)(jet_x, jet_y, jet_Y, jet_v_l, jet_v_r);
+        functor_(jet_x, jet_y, jet_Y, jet_v_l, jet_v_r);
 
         /// Retrieve solution:
         x = jet_x.a;
@@ -132,13 +131,13 @@ namespace diff_drive_controller
       virtual void setWheelParams(const double wheel_separation,
           const double left_wheel_radius, const double right_wheel_radius)
       {
-        functor_->setWheelParams(wheel_separation,
+        functor_.setWheelParams(wheel_separation,
             left_wheel_radius, right_wheel_radius);
       }
 
     private:
       /// Integrate functor:
-      boost::shared_ptr< IntegrateFunctor<Functor> > functor_;
+      IntegrateFunctor<Functor> functor_;
   };
 
 }  // namespace diff_drive_controller

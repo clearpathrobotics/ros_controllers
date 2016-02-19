@@ -57,10 +57,9 @@ namespace diff_drive_controller
 
       /**
        * \brief Constructor
-       * \param [in] functor Integrate functor
        */
-      AnalyticIntegrateFunction(IntegrateFunctor<Functor>* functor)
-        : functor_(functor)
+      AnalyticIntegrateFunction()
+        : functor_()
       {}
 
       /**
@@ -74,7 +73,7 @@ namespace diff_drive_controller
       virtual void operator()(double& x, double& y, double& Y,
           const double& v_l, const double& v_r) const
       {
-        (*functor_)(x, y, Y, v_l, v_r);
+        functor_(x, y, Y, v_l, v_r);
       }
 
       /**
@@ -92,7 +91,7 @@ namespace diff_drive_controller
           PoseJacobian& J_pose, MeasJacobian& J_meas) const
       {
         /// Integrate and compute the partial derivatives:
-        (*functor_)(x, y, Y, v_l, v_r, J_pose, J_meas);
+        functor_(x, y, Y, v_l, v_r, J_pose, J_meas);
       }
 
       /**
@@ -105,13 +104,13 @@ namespace diff_drive_controller
       virtual void setWheelParams(const double wheel_separation,
           const double left_wheel_radius, const double right_wheel_radius)
       {
-        functor_->setWheelParams(wheel_separation,
+        functor_.setWheelParams(wheel_separation,
             left_wheel_radius, right_wheel_radius);
       }
 
     private:
       /// Integrate functor:
-      boost::shared_ptr< IntegrateFunctor<Functor> > functor_;
+      IntegrateFunctor<Functor> functor_;
   };
 
 }  // namespace diff_drive_controller

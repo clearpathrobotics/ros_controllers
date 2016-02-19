@@ -85,9 +85,7 @@ namespace diff_drive_controller
   , v_yaw_acc_(RollingWindow::window_size = velocity_rolling_window_size)
   , integrate_fun_(
       new AutoDiffIntegrateFunction<DirectKinematicsIntegrateFunctor,
-                                    ExactIntegrateFunctor>(
-      new DirectKinematicsIntegrateFunctor<ExactIntegrateFunctor>(
-      new ExactIntegrateFunctor)))
+                                    ExactIntegrateFunctor>())
   {
     minimum_twist_covariance_.setIdentity();
     minimum_twist_covariance_ *= DEFAULT_MINIMUM_TWIST_COVARIANCE;

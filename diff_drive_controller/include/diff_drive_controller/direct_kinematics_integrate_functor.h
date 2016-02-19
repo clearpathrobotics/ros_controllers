@@ -42,7 +42,6 @@
 #include <diff_drive_controller/integrate_function.h>
 
 #include <boost/type_traits.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/static_assert.hpp>
 
 namespace diff_drive_controller
@@ -52,8 +51,8 @@ namespace diff_drive_controller
   template <typename Functor>
   struct DirectKinematicsIntegrateFunctor
   {
-    DirectKinematicsIntegrateFunctor(Functor* functor)
-      : functor_(functor)
+    DirectKinematicsIntegrateFunctor()
+      : functor_()
       , wheel_separation_(0.0)
       , left_wheel_radius_(0.0)
       , right_wheel_radius_(0.0)
@@ -87,7 +86,7 @@ namespace diff_drive_controller
       const T w = (vr - vl) / T(wheel_separation_);
 
       /// Integrate:
-      (*functor_)(x, y, yaw, v, w);
+      functor_(x, y, yaw, v, w);
     }
 
     /**
@@ -125,7 +124,7 @@ namespace diff_drive_controller
               -left_wheel_radius_ * b_inv, right_wheel_radius_ * b_inv;
 
       /// Integrate:
-      (*functor_)(x, y, yaw, v, w, J_pose, J_meas);
+      functor_(x, y, yaw, v, w, J_pose, J_meas);
 
       /// Jacobian wrt wheel velocities (v_l, v_r), applying the chain rule:
       J_meas *= J_dk;
@@ -148,7 +147,7 @@ namespace diff_drive_controller
 
   private:
     /// Integrate functor:
-    boost::shared_ptr<Functor> functor_;
+    Functor functor_;
 
     /// Wheel parameters:
     double wheel_separation_;

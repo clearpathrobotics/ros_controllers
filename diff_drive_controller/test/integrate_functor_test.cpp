@@ -67,15 +67,11 @@ void testIntegrateFunctor(double& x, double& y, double& yaw,
           AnalyticIntegrator;
 
   // Create auto-diff and analytic integrators:
-  AutoDiffIntegrator integrate_auto_diff = AutoDiffIntegrator(
-      new DirectKinematicsIntegrateFunctor<Functor>(new Functor));
+  AutoDiffIntegrator integrate_auto_diff;
+  AnalyticIntegrator integrate_analytic;
 
   integrate_auto_diff.setWheelParams(WHEEL_SEPARATION,
           LEFT_WHEEL_RADIUS, RIGHT_WHEEL_RADIUS);
-
-  AnalyticIntegrator integrate_analytic = AnalyticIntegrator(
-      new DirectKinematicsIntegrateFunctor<Functor>(new Functor));
-
   integrate_analytic.setWheelParams(WHEEL_SEPARATION,
           LEFT_WHEEL_RADIUS, RIGHT_WHEEL_RADIUS);
 
