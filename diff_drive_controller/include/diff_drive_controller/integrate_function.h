@@ -41,6 +41,8 @@
 
 #include <Eigen/Core>
 
+#include <boost/shared_ptr.hpp>
+
 namespace diff_drive_controller
 {
 
@@ -53,6 +55,9 @@ namespace diff_drive_controller
       /// Pose and measurement jacobian types:
       typedef Eigen::Matrix3d             PoseJacobian;
       typedef Eigen::Matrix<double, 3, 2> MeasJacobian;
+
+      /// Pointer types:
+      typedef boost::shared_ptr<IntegrateFunction> Ptr;
 
       /**
        * \brief Constructor
@@ -87,6 +92,17 @@ namespace diff_drive_controller
       virtual void operator()(double& x, double& y, double& Y,
           const double& v_l, const double& v_r,
           PoseJacobian& J_pose, MeasJacobian& J_meas) const = 0;
+
+      /**
+       * \brief Create an integrate function with the given method and
+       * differentiation scheme
+       * \param[in] method          Integration method, which can be:
+       *                            "euler", "rungekutta2", "exact" (default)
+       * \param[in] differentiation Differentiation scheme, which can be:
+       *                            "analytic" (default), "autodiff"
+       */
+      static Ptr create(const std::string& method = "exact",
+          const std::string& differentiation = "analytic");
 
       /**
        * \brief Sets the wheel parameters: radius and separation

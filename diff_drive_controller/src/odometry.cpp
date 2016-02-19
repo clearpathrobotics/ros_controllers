@@ -41,17 +41,8 @@
 
 #include <diff_drive_controller/odometry.h>
 
-#include <diff_drive_controller/autodiff_integrate_function.h>
-#include <diff_drive_controller/analytic_integrate_function.h>
-
-#include <diff_drive_controller/direct_kinematics_integrate_functor.h>
-
-#include <diff_drive_controller/euler_integrate_functor.h>
-#include <diff_drive_controller/runge_kutta_2_integrate_functor.h>
-#include <diff_drive_controller/exact_integrate_functor.h>
-
-#include <diff_drive_controller/linear_meas_covariance_model.h>
-#include <diff_drive_controller/quadratic_meas_covariance_model.h>
+#include <diff_drive_controller/integrate_function.h>
+#include <diff_drive_controller/meas_covariance_model.h>
 
 #include <Eigen/Core>
 
@@ -73,7 +64,7 @@ namespace diff_drive_controller
   , d_y_(0.0)
   , d_yaw_(0.0)
   , incremental_pose_dt_(0.0)
-  , meas_covariance_model_(new LinearMeasCovarianceModel())
+  , meas_covariance_model_(MeasCovarianceModel::create("linear"))
   , wheel_separation_(0.0)
   , left_wheel_radius_(0.0)
   , right_wheel_radius_(0.0)
@@ -83,9 +74,7 @@ namespace diff_drive_controller
   , v_x_acc_(RollingWindow::window_size = velocity_rolling_window_size)
   , v_y_acc_(RollingWindow::window_size = velocity_rolling_window_size)
   , v_yaw_acc_(RollingWindow::window_size = velocity_rolling_window_size)
-  , integrate_fun_(
-      new AutoDiffIntegrateFunction<DirectKinematicsIntegrateFunctor,
-                                    ExactIntegrateFunctor>())
+  , integrate_fun_(IntegrateFunction::create("exact"))
   {
     minimum_twist_covariance_.setIdentity();
     minimum_twist_covariance_ *= DEFAULT_MINIMUM_TWIST_COVARIANCE;
