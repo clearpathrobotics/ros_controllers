@@ -210,6 +210,28 @@ namespace diff_drive_controller
     return true;
   }
 
+  void Odometry::setIntegrateFunction(const std::string& method,
+      const std::string& differentiation)
+  {
+    IntegrateFunction::Ptr tmp = IntegrateFunction::create(method,
+        differentiation);
+
+    if (tmp)
+    {
+      integrate_fun_ = tmp;
+    }
+  }
+
+  void Odometry::setMeasCovarianceModel(const std::string& model)
+  {
+    MeasCovarianceModel::Ptr tmp = MeasCovarianceModel::create(model);
+
+    if (tmp)
+    {
+      meas_covariance_model_ = tmp;
+    }
+  }
+
   void Odometry::setWheelParams(const double wheel_separation,
       const double left_wheel_radius, const double right_wheel_radius)
   {
@@ -229,7 +251,8 @@ namespace diff_drive_controller
     resetAccumulators();
   }
 
-  void Odometry::setMeasCovarianceParams(const double k_l, const double k_r,
+  void Odometry::setMeasCovarianceModelParams(
+      const double k_l, const double k_r,
       const double wheel_resolution)
   {
     meas_covariance_model_->setKl(k_l);

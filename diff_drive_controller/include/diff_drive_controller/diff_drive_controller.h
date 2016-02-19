@@ -296,6 +296,13 @@ namespace diff_drive_controller
     double control_frequency_desired_;
     double control_period_desired_;
 
+    /// Meas(urement) Covariance Model, which can be: "linear", "quadratic":
+    std::string meas_covariance_model_;
+
+    /// Integrate method, which can be: "euler", "rungekutta2", "exact"
+    /// and differentiation scheme, which can be: "analytic", "autodiff"
+    std::string integrate_method_;
+    std::string integrate_differentiation_;
   private:
     /**
      * \brief Brakes the wheels, i.e. sets the velocity to 0
