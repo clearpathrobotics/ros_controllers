@@ -41,6 +41,8 @@
 
 #include <Eigen/Core>
 
+#include <boost/shared_ptr.hpp>
+
 namespace diff_drive_controller
 {
 
@@ -52,6 +54,9 @@ namespace diff_drive_controller
     public:
       /// Meas(urement) covariance type:
       typedef Eigen::Matrix2d MeasCovariance;
+
+      /// Pointer types:
+      typedef boost::shared_ptr<MeasCovarianceModel> Ptr;
 
       /**
        * \brief Constructor
@@ -71,6 +76,13 @@ namespace diff_drive_controller
        * \return Meas(urement) covariance
        */
       virtual const MeasCovariance& compute(const double dp_l, const double dp_r) = 0;
+
+      /**
+       * \brief Create a meas(urement) covariance model given the model
+       * \param[in] model Meas(urement) covariance model, which can be:
+       *                  "linear" (default), "quadratic"
+       */
+      static Ptr create(const std::string& model = "linear");
 
       /**
        * \brief Left wheel covariance gain getter

@@ -145,6 +145,9 @@ namespace diff_drive_controller
     , publish_state_(config_default_.publish_state)
     , control_frequency_desired_(config_default_.control_frequency_desired)
     , control_period_desired_(1.0 / control_frequency_desired_)
+    , meas_covariance_model_("linear")
+    , integrate_method_("exact")
+    , integrate_differentiation_("analytic")
   {
   }
 
@@ -207,6 +210,19 @@ namespace diff_drive_controller
     ROS_INFO_STREAM_NAMED(name_,
         "Control period will be " <<
         (period_from_time_ ? "computed from delta in update() time inputs" : "the duration period passed to update()") << ".");
+
+    controller_nh.param("integrate_method",
+        integrate_method_, integrate_method_);
+    controller_nh.param("integrate_differentiation",
+        integrate_differentiation_, integrate_differentiation_);
+    ROS_INFO_STREAM_NAMED(name_, "Integrating odometry with method "
+                          << integrate_method_ << " and differentiation "
+                          << integrate_differentiation_ << ".");
+
+    controller_nh.param("meas_covariance_model",
+        meas_covariance_model_, meas_covariance_model_);
+    ROS_INFO_STREAM_NAMED(name_, "Using " << meas_covariance_model_
+                          << " Meas(urement) Covariance Model.");
 
     controller_nh.param("wheel_separation_multiplier",
         wheel_separation_multiplier_, wheel_separation_multiplier_);
@@ -349,7 +365,7 @@ namespace diff_drive_controller
                           << ", left wheel radius "  << wrl
                           << ", right wheel radius " << wrr);
 
-    odometry_.setMeasCovarianceParams(k_l_, k_r_, wheel_resolution_);
+    odometry_.setMeasCovarianceModelParams(k_l_, k_r_, wheel_resolution_);
     ROS_INFO_STREAM_NAMED(name_,
                           "Measurement Covariance Model params : k_l " << k_l_
                           << ", k_r " << k_r_
@@ -574,7 +590,7 @@ namespace diff_drive_controller
 
     // Set the odometry parameters:
     odometry_.setWheelParams(ws, wrl, wrr);
-    odometry_.setMeasCovarianceParams(k_l_, k_r_, wheel_resolution_);
+    odometry_.setMeasCovarianceModelParams(k_l_, k_r_, wheel_resolution_);
 
     // COMPUTE AND PUBLISH ODOMETRY
     // Read wheel joint positions and velocities:

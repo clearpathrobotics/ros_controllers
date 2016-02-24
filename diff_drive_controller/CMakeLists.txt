@@ -55,8 +55,10 @@ roslint_cpp()
 
 add_library(${PROJECT_NAME}
   src/diff_drive_controller.cpp
+  src/meas_covariance_model.cpp
   src/linear_meas_covariance_model.cpp
   src/quadratic_meas_covariance_model.cpp
+  src/integrate_function.cpp
   src/odometry.cpp
   src/speed_limiter.cpp)
 # Note that the entry for ${Ceres_LIBRARIES} was removed as we only used headers from that package
@@ -86,6 +88,9 @@ if (CATKIN_ENABLE_TESTING)
     include
     ${catkin_INCLUDE_DIRS}
     ${EIGEN_INCLUDE_DIRS})
+
+  catkin_add_gtest(integrate_functor_test test/integrate_functor_test.cpp)
+  target_link_libraries(integrate_functor_test ${PROJECT_NAME})
 
   catkin_add_gtest(odometry_test test/odometry_test.cpp)
   target_link_libraries(odometry_test ${PROJECT_NAME})

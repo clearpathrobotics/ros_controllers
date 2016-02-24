@@ -39,8 +39,9 @@
 #ifndef DIRECT_KINEMATICS_INTEGRATE_FUNCTOR_H_
 #define DIRECT_KINEMATICS_INTEGRATE_FUNCTOR_H_
 
+#include <diff_drive_controller/integrate_function.h>
+
 #include <boost/type_traits.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/static_assert.hpp>
 
 namespace diff_drive_controller
@@ -50,8 +51,8 @@ namespace diff_drive_controller
   template <typename Functor>
   struct DirectKinematicsIntegrateFunctor
   {
-    DirectKinematicsIntegrateFunctor(Functor* functor)
-      : functor_(functor)
+    DirectKinematicsIntegrateFunctor()
+      : functor_()
       , wheel_separation_(0.0)
       , left_wheel_radius_(0.0)
       , right_wheel_radius_(0.0)
@@ -60,15 +61,16 @@ namespace diff_drive_controller
     /**
      * \brief Integrates the pose (x, y, yaw) given the wheel velocities
      * (v_l, v_r)
-     * \param [in, out] x   Pose x   component
-     * \param [in, out] y   Pose y   component
-     * \param [in, out] yaw Pose yaw component
-     * \param [in] v_l Left  wheel velocity [rad]
-     *                 (angular  displacement, i.e. rad/s * dt) computed by encoders
-     * \param [in] v_r Right wheel velocity [rad]
+     * \param[in, out] x   Pose x   component
+     * \param[in, out] y   Pose y   component
+     * \param[in, out] yaw Pose yaw component
+     * \param[in] v_l Left  wheel velocity [rad]
+     *                (angular  displacement, i.e. rad/s * dt) computed by encoders
+     * \param[in] v_r Right wheel velocity [rad]
      *                 (angular  displacement, i.e. rad/s * dt) computed by encoders
      */
     template <typename T>
+    // @todo rename v_l, v_r to dp_l, dp_r (here and in other files)
     void operator()(T& x, T& y, T& yaw, const T& v_l, const T& v_r) const
     {
       BOOST_STATIC_ASSERT_MSG(
@@ -84,17 +86,59 @@ namespace diff_drive_controller
       const T w = (vr - vl) / T(wheel_separation_);
 
       /// Integrate:
-      (*functor_)(x, y, yaw, v, w);
+      functor_(x, y, yaw, v, w);
+    }
+
+    /**
+     * \brief Integrates the pose (x, y, yaw) given the wheel velocities
+     * (v_l, v_r)
+     * \param[in, out] x   Pose x   component
+     * \param[in, out] y   Pose y   component
+     * \param[in, out] yaw Pose yaw component
+     * \param[in] v_l Left  wheel velocity [rad]
+     *                (angular  displacement, i.e. rad/s * dt) computed by encoders
+     * \param[in] v_r Right wheel velocity [rad]
+     *                (angular  displacement, i.e. rad/s * dt) computed by encoders
+     * \param[out] J_pose Jacobian wrt the pose (x, y, yaw)
+     * \param[out] J_meas Jacobian wrt the meas(urement) wheel velocities
+     *                    (v_l, v_r)
+     */
+    void operator()(double& x, double& y, double& yaw,
+        const double& v_l, const double& v_r,
+        IntegrateFunction::PoseJacobian& J_pose,
+        IntegrateFunction::MeasJacobian& J_meas) const
+    {
+      /// Compute direct kinematics, i.e. obtain linear and angular velocity
+      /// from wheel velocities:
+      const double vl = v_l * left_wheel_radius_;
+      const double vr = v_r * right_wheel_radius_;
+
+      const double b_inv = 1.0 / wheel_separation_;
+
+      const double v = (vr + vl) * 0.5;
+      const double w = (vr - vl) * b_inv;
+
+      /// Jacobian of direct kinematics:
+      Eigen::Matrix2d J_dk;
+      J_dk << 0.5 * left_wheel_radius_, 0.5 * right_wheel_radius_,
+              -left_wheel_radius_ * b_inv, right_wheel_radius_ * b_inv;
+
+      /// Integrate:
+      functor_(x, y, yaw, v, w, J_pose, J_meas);
+
+      /// Jacobian wrt wheel velocities (v_l, v_r), applying the chain rule:
+      J_meas *= J_dk;
     }
 
     /**
      * \brief Sets the wheel parameters: radius and separation
-     * \param wheel_separation   Seperation between left and right wheels [m]
-     * \param left_wheel_radius  Left  wheel radius [m]
-     * \param right_wheel_radius Right wheel radius [m]
+     * \param[in] wheel_separation   Seperation between
+     *                               left and right wheels [m]
+     * \param[in] left_wheel_radius  Left  wheel radius [m]
+     * \param[in] right_wheel_radius Right wheel radius [m]
      */
-    void setWheelParams(double wheel_separation,
-        double left_wheel_radius, double right_wheel_radius)
+    void setWheelParams(const double wheel_separation,
+        const double left_wheel_radius, const double right_wheel_radius)
     {
       wheel_separation_   = wheel_separation;
       left_wheel_radius_  = left_wheel_radius;
@@ -103,14 +147,13 @@ namespace diff_drive_controller
 
   private:
     /// Integrate functor:
-    boost::shared_ptr<Functor> functor_;
+    Functor functor_;
 
     /// Wheel parameters:
     double wheel_separation_;
     double left_wheel_radius_;
     double right_wheel_radius_;
   };
-
 
 } // namespace diff_drive_controller
 

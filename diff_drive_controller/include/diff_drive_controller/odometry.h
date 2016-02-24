@@ -226,6 +226,23 @@ namespace diff_drive_controller
     }
 
     /**
+     * \brief Sets the Integrate Function, if it's supported
+       * \param[in] method          Integration method, which can be:
+       *                            "euler", "rungekutta2", "exact"
+       * \param[in] differentiation Differentiation scheme, which can be:
+       *                            "analytic", "autodiff"
+     */
+    void setIntegrateFunction(const std::string& method,
+        const std::string& differentiation);
+
+    /**
+     * \brief Sets the Measurement Covariance Model, if it's supported
+     * \param[in] model Measurement Covariance model, which can be:
+     *                  "linear", "quadratic"
+     */
+    void setMeasCovarianceModel(const std::string& model);
+
+    /**
      * \brief Sets the wheel parameters: radius and separation
      * \param[in] wheel_separation   Seperation between
      *                               left and right wheels [m]
@@ -242,7 +259,7 @@ namespace diff_drive_controller
      * \param[in] wheel_resolution Wheel resolution [rad] (assumed the same for
      *                             both wheels
      */
-    void setMeasCovarianceParams(const double k_l, const double k_r,
+    void setMeasCovarianceModelParams(const double k_l, const double k_r,
         const double wheel_resolution);
 
     /**

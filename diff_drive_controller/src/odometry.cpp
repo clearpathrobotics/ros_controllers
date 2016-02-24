@@ -41,14 +41,8 @@
 
 #include <diff_drive_controller/odometry.h>
 
-#include <diff_drive_controller/autodiff_integrate_function.h>
-
-#include <diff_drive_controller/linear_meas_covariance_model.h>
-#include <diff_drive_controller/quadratic_meas_covariance_model.h>
-
-#include <diff_drive_controller/direct_kinematics_integrate_functor.h>
-#include <diff_drive_controller/runge_kutta_2_integrate_functor.h>
-#include <diff_drive_controller/exact_integrate_functor.h>
+#include <diff_drive_controller/integrate_function.h>
+#include <diff_drive_controller/meas_covariance_model.h>
 
 #include <Eigen/Core>
 
@@ -70,7 +64,7 @@ namespace diff_drive_controller
   , d_y_(0.0)
   , d_yaw_(0.0)
   , incremental_pose_dt_(0.0)
-  , meas_covariance_model_(new LinearMeasCovarianceModel())
+  , meas_covariance_model_(MeasCovarianceModel::create("linear"))
   , wheel_separation_(0.0)
   , left_wheel_radius_(0.0)
   , right_wheel_radius_(0.0)
@@ -80,11 +74,7 @@ namespace diff_drive_controller
   , v_x_acc_(RollingWindow::window_size = velocity_rolling_window_size)
   , v_y_acc_(RollingWindow::window_size = velocity_rolling_window_size)
   , v_yaw_acc_(RollingWindow::window_size = velocity_rolling_window_size)
-  , integrate_fun_(
-      new AutoDiffIntegrateFunction<DirectKinematicsIntegrateFunctor,
-                                    ExactIntegrateFunctor>(
-      new DirectKinematicsIntegrateFunctor<ExactIntegrateFunctor>(
-      new ExactIntegrateFunctor)))
+  , integrate_fun_(IntegrateFunction::create("exact"))
   {
     minimum_twist_covariance_.setIdentity();
     minimum_twist_covariance_ *= DEFAULT_MINIMUM_TWIST_COVARIANCE;
@@ -220,6 +210,28 @@ namespace diff_drive_controller
     return true;
   }
 
+  void Odometry::setIntegrateFunction(const std::string& method,
+      const std::string& differentiation)
+  {
+    IntegrateFunction::Ptr tmp = IntegrateFunction::create(method,
+        differentiation);
+
+    if (tmp)
+    {
+      integrate_fun_ = tmp;
+    }
+  }
+
+  void Odometry::setMeasCovarianceModel(const std::string& model)
+  {
+    MeasCovarianceModel::Ptr tmp = MeasCovarianceModel::create(model);
+
+    if (tmp)
+    {
+      meas_covariance_model_ = tmp;
+    }
+  }
+
   void Odometry::setWheelParams(const double wheel_separation,
       const double left_wheel_radius, const double right_wheel_radius)
   {
@@ -239,7 +251,8 @@ namespace diff_drive_controller
     resetAccumulators();
   }
 
-  void Odometry::setMeasCovarianceParams(const double k_l, const double k_r,
+  void Odometry::setMeasCovarianceModelParams(
+      const double k_l, const double k_r,
       const double wheel_resolution)
   {
     meas_covariance_model_->setKl(k_l);
