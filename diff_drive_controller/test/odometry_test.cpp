@@ -68,7 +68,7 @@ static void setupOdometry(diff_drive_controller::Odometry& odometry)
   odometry.setWheelParams(WHEEL_SEPARATION,
       LEFT_WHEEL_RADIUS, RIGHT_WHEEL_RADIUS);
 
-  odometry.setMeasCovarianceParams(K_L, K_R, WHEEL_RESOLUTION);
+  odometry.setMeasCovarianceModelParams(K_L, K_R, WHEEL_RESOLUTION);
 }
 
 static void moveOdometry(diff_drive_controller::Odometry& odometry,
@@ -151,7 +151,7 @@ TEST(OdometryTest, testIntegrateMotionNoMoveFromInitial)
 
   // Set wheel resolution to 0.0, because when it's != 0.0 the covariance
   // always grows a little on every single step, even if the robot doesn't move:
-  odometry.setMeasCovarianceParams(K_L, K_R, 0.0);
+  odometry.setMeasCovarianceModelParams(K_L, K_R, 0.0);
 
   // Save initial/current pose and twist state and covariance:
   const double x_0   = odometry.getX();
