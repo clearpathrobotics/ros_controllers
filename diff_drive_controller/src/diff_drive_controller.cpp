@@ -120,6 +120,32 @@ static bool getWheelRadius(
 
 namespace diff_drive_controller
 {
+  static void resize(trajectory_msgs::JointTrajectoryPoint& msg,
+      const size_t size)
+  {
+    msg.positions.resize(size);
+    msg.velocities.resize(size);
+    msg.accelerations.resize(size);
+    msg.effort.resize(size);
+  }
+
+  static void resize(DiffDriveControllerState& msg, const size_t size)
+  {
+    msg.joint_names.resize(size);
+
+    resize(msg.desired         , size);
+    resize(msg.actual          , size);
+    resize(msg.limited         , size);
+    resize(msg.error           , size);
+    resize(msg.actual_estimated, size);
+    resize(msg.error_estimated , size);
+
+    resize(msg.actual_side_average          , 2);
+    resize(msg.error_side_average           , 2);
+    resize(msg.actual_estimated_side_average, 2);
+    resize(msg.error_estimated_side_average , 2);
+  }
+
   const DiffDriveControllerConfig DiffDriveController::config_default_ = DiffDriveControllerConfig::__getDefault__();
 
   DiffDriveController::DiffDriveController()
@@ -439,57 +465,7 @@ namespace diff_drive_controller
 
     state_pub_->msg_.header.frame_id = base_frame_id_;
 
-    state_pub_->msg_.joint_names.resize(2 * wheel_joints_size_);
-
-    state_pub_->msg_.desired.positions.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.desired.velocities.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.desired.accelerations.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.desired.effort.resize(2 * wheel_joints_size_);
-
-    state_pub_->msg_.actual.positions.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.actual.velocities.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.actual.accelerations.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.actual.effort.resize(2 * wheel_joints_size_);
-
-    state_pub_->msg_.limited.positions.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.limited.velocities.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.limited.accelerations.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.limited.effort.resize(2 * wheel_joints_size_);
-
-    state_pub_->msg_.error.positions.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.error.velocities.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.error.accelerations.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.error.effort.resize(2 * wheel_joints_size_);
-
-    state_pub_->msg_.actual_estimated.positions.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.actual_estimated.velocities.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.actual_estimated.accelerations.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.actual_estimated.effort.resize(2 * wheel_joints_size_);
-
-    state_pub_->msg_.error_estimated.positions.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.error_estimated.velocities.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.error_estimated.accelerations.resize(2 * wheel_joints_size_);
-    state_pub_->msg_.error_estimated.effort.resize(2 * wheel_joints_size_);
-
-    state_pub_->msg_.actual_side_average.positions.resize(2);
-    state_pub_->msg_.actual_side_average.velocities.resize(2);
-    state_pub_->msg_.actual_side_average.accelerations.resize(2);
-    state_pub_->msg_.actual_side_average.effort.resize(2);
-
-    state_pub_->msg_.error_side_average.positions.resize(2);
-    state_pub_->msg_.error_side_average.velocities.resize(2);
-    state_pub_->msg_.error_side_average.accelerations.resize(2);
-    state_pub_->msg_.error_side_average.effort.resize(2);
-
-    state_pub_->msg_.actual_estimated_side_average.positions.resize(2);
-    state_pub_->msg_.actual_estimated_side_average.velocities.resize(2);
-    state_pub_->msg_.actual_estimated_side_average.accelerations.resize(2);
-    state_pub_->msg_.actual_estimated_side_average.effort.resize(2);
-
-    state_pub_->msg_.error_estimated_side_average.positions.resize(2);
-    state_pub_->msg_.error_estimated_side_average.velocities.resize(2);
-    state_pub_->msg_.error_estimated_side_average.accelerations.resize(2);
-    state_pub_->msg_.error_estimated_side_average.effort.resize(2);
+    resize(state_pub_->msg_, 2 * wheel_joints_size_);
 
     for (size_t i = 0; i < wheel_joints_size_; ++i)
     {
@@ -907,6 +883,11 @@ namespace diff_drive_controller
         // Set state error:
         for (size_t i = 0; i < 2 * wheel_joints_size_; ++i)
         {
+          // @todo create operator-() so we can do:
+          // state_pub_->msg_.error = state_pub_->msg_.desired - state_pub_->msg_.actual;
+          // and also
+          // updateError(state_pub_->msg_);
+          // calling the 4 error fields
           state_pub_->msg_.error.positions[i] =
             state_pub_->msg_.desired.positions[i] - state_pub_->msg_.actual.positions[i];
           state_pub_->msg_.error.velocities[i] =
