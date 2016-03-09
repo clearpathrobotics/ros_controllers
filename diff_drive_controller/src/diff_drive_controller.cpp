@@ -580,6 +580,10 @@ namespace diff_drive_controller
     }
 
     // Check for NaNs on wheel joint positions if we're going to use them:
+    // @todo when we switch from position estimated there's a jump because the
+    // Odometry object saves the latest position, which differs, it should
+    // probably be updated all time, or provide the incremental/relative
+    // position change from here!
     use_position_ =  pose_from_joint_position_ ||  twist_from_joint_position_;
     use_velocity_ = !pose_from_joint_position_ || !twist_from_joint_position_;
 
