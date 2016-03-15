@@ -146,6 +146,50 @@ namespace diff_drive_controller
     resize(msg.error_estimated_side_average , 2);
   }
 
+  static void error(
+      std::vector<double>& err,
+      const std::vector<double>& desired,
+      const std::vector<double>& actual)
+  {
+    const size_t n = err.size();
+
+    ROS_ASSERT(n == desired.size() && n == actual.size());
+
+    for (size_t i = 0; i < n; ++i)
+    {
+      err[i] = desired[i] - actual[i];
+    }
+  }
+
+  static void error(
+      trajectory_msgs::JointTrajectoryPoint& err,
+      const trajectory_msgs::JointTrajectoryPoint& desired,
+      const trajectory_msgs::JointTrajectoryPoint& actual)
+  {
+    error(err.positions    , desired.positions    , actual.positions);
+    error(err.velocities   , desired.velocities   , actual.velocities);
+    error(err.accelerations, desired.accelerations, actual.accelerations);
+    error(err.effort       , desired.effort       , actual.effort);
+
+    err.time_from_start = actual.time_from_start;
+  }
+
+  static void error(DiffDriveControllerState& msg)
+  {
+    error(msg.error          , msg.desired, msg.actual);
+    error(msg.error_estimated, msg.desired, msg.actual_estimated);
+
+    error(msg.error_side_average,
+        msg.desired, msg.actual_side_average);
+    error(msg.error_estimated_side_average,
+        msg.desired, msg.actual_estimated_side_average);
+
+    msg.control_period_error =
+        msg.control_period_desired - msg.control_period_actual;
+    msg.control_period_error_estimated =
+        msg.control_period_desired - msg.control_period_actual_estimated;
+  }
+
   const DiffDriveControllerConfig DiffDriveController::config_default_ = DiffDriveControllerConfig::__getDefault__();
 
   DiffDriveController::DiffDriveController()
@@ -884,72 +928,21 @@ namespace diff_drive_controller
         state_pub_->msg_.actual_estimated_side_average.positions[1] = right_position_estimated_average;
         state_pub_->msg_.actual_estimated_side_average.effort[1] = state_pub_->msg_.actual.effort[wheel_joints_size_];
 
-        // Set state error:
-        for (size_t i = 0; i < 2 * wheel_joints_size_; ++i)
-        {
-          // @todo create operator-() so we can do:
-          // state_pub_->msg_.error = state_pub_->msg_.desired - state_pub_->msg_.actual;
-          // and also
-          // updateError(state_pub_->msg_);
-          // calling the 4 error fields
-          state_pub_->msg_.error.positions[i] =
-            state_pub_->msg_.desired.positions[i] - state_pub_->msg_.actual.positions[i];
-          state_pub_->msg_.error.velocities[i] =
-            state_pub_->msg_.desired.velocities[i] - state_pub_->msg_.actual.velocities[i];
-          state_pub_->msg_.error.accelerations[i] =
-            state_pub_->msg_.desired.accelerations[i] - state_pub_->msg_.actual.accelerations[i];
-          state_pub_->msg_.error.effort[i] =
-            state_pub_->msg_.desired.effort[i] - state_pub_->msg_.actual.effort[i];
-
-          state_pub_->msg_.error_estimated.positions[i] =
-            state_pub_->msg_.desired.positions[i] - state_pub_->msg_.actual_estimated.positions[i];
-          state_pub_->msg_.error_estimated.velocities[i] =
-            state_pub_->msg_.desired.velocities[i] - state_pub_->msg_.actual_estimated.velocities[i];
-          state_pub_->msg_.error_estimated.accelerations[i] =
-            state_pub_->msg_.desired.accelerations[i] - state_pub_->msg_.actual_estimated.accelerations[i];
-          state_pub_->msg_.error_estimated.effort[i] =
-            state_pub_->msg_.desired.effort[i] - state_pub_->msg_.actual_estimated.effort[i];
-
-          state_pub_->msg_.error_side_average.positions[i] =
-            state_pub_->msg_.desired.positions[i] - state_pub_->msg_.actual_side_average.positions[i];
-          state_pub_->msg_.error_side_average.velocities[i] =
-            state_pub_->msg_.desired.velocities[i] - state_pub_->msg_.actual_side_average.velocities[i];
-          state_pub_->msg_.error_side_average.accelerations[i] =
-            state_pub_->msg_.desired.accelerations[i] - state_pub_->msg_.actual_side_average.accelerations[i];
-          state_pub_->msg_.error_side_average.effort[i] =
-            state_pub_->msg_.desired.effort[i] - state_pub_->msg_.actual_side_average.effort[i];
-
-          state_pub_->msg_.error_estimated_side_average.positions[i] =
-            state_pub_->msg_.desired.positions[i] - state_pub_->msg_.actual_estimated_side_average.positions[i];
-          state_pub_->msg_.error_estimated_side_average.velocities[i] =
-            state_pub_->msg_.desired.velocities[i] - state_pub_->msg_.actual_estimated_side_average.velocities[i];
-          state_pub_->msg_.error_estimated_side_average.accelerations[i] =
-            state_pub_->msg_.desired.accelerations[i] - state_pub_->msg_.actual_estimated_side_average.accelerations[i];
-          state_pub_->msg_.error_estimated_side_average.effort[i] =
-            state_pub_->msg_.desired.effort[i] - state_pub_->msg_.actual_estimated_side_average.effort[i];
-        }
-
         // Set time from start:
         state_pub_->msg_.desired.time_from_start = ros::Duration(dt);
         state_pub_->msg_.actual.time_from_start = ros::Duration(control_period);
-        state_pub_->msg_.error.time_from_start = state_pub_->msg_.actual.time_from_start;
 
         state_pub_->msg_.actual_estimated.time_from_start = state_pub_->msg_.actual.time_from_start;
-        state_pub_->msg_.error_estimated.time_from_start = state_pub_->msg_.actual_estimated.time_from_start;
 
         state_pub_->msg_.actual_side_average.time_from_start = state_pub_->msg_.actual.time_from_start;
-        state_pub_->msg_.error_side_average.time_from_start = state_pub_->msg_.actual_side_average.time_from_start;
 
         state_pub_->msg_.actual_estimated_side_average.time_from_start = state_pub_->msg_.actual.time_from_start;
-        state_pub_->msg_.error_estimated_side_average.time_from_start = state_pub_->msg_.actual_estimated_side_average.time_from_start;
 
         // Set control period (update method):
         state_pub_->msg_.control_period_desired = control_period_desired_;
         state_pub_->msg_.control_period_actual  = period.toSec();
-        state_pub_->msg_.control_period_error   = state_pub_->msg_.control_period_desired - state_pub_->msg_.control_period_actual;
 
         state_pub_->msg_.control_period_actual_estimated = period_estimated.toSec();
-        state_pub_->msg_.control_period_error_estimated = state_pub_->msg_.control_period_desired - state_pub_->msg_.control_period_actual_estimated;
 
         // Set control wall, user and system time:
         boost::timer::cpu_times control_times = cpu_timer_.elapsed();
@@ -957,6 +950,9 @@ namespace diff_drive_controller
         state_pub_->msg_.control_time_wall   = 1e-9 * control_times.wall;
         state_pub_->msg_.control_time_user   = 1e-9 * control_times.user;
         state_pub_->msg_.control_time_system = 1e-9 * control_times.system;
+
+        // Set state error:
+        error(state_pub_->msg_);
 
         state_pub_->unlockAndPublish();
       }
