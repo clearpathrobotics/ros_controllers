@@ -39,6 +39,7 @@
 
 #include <cmath>
 
+#include <algorithm>
 #include <numeric>
 
 #include <tf/transform_datatypes.h>
@@ -146,19 +147,19 @@ namespace diff_drive_controller
     resize(msg.error_estimated_side_average , 2);
   }
 
+  template <typename T>
   static void error(
-      std::vector<double>& err,
-      const std::vector<double>& desired,
-      const std::vector<double>& actual)
+      std::vector<T>& err,
+      const std::vector<T>& desired,
+      const std::vector<T>& actual)
   {
     const size_t n = err.size();
 
     ROS_ASSERT(n == desired.size() && n == actual.size());
 
-    for (size_t i = 0; i < n; ++i)
-    {
-      err[i] = desired[i] - actual[i];
-    }
+    // Compute: error = desired - actual
+    std::transform(desired.begin(), desired.end(), actual.begin(),
+        err.begin(), std::minus<T>());
   }
 
   static void error(
