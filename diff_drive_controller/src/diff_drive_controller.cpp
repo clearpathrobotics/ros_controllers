@@ -776,6 +776,8 @@ namespace diff_drive_controller
     {
       curr_cmd.lin = 0.0;
       curr_cmd.ang = 0.0;
+
+      // @todo add a diagnostic message
     }
 
     // Limit velocities and accelerations:
