@@ -796,6 +796,15 @@ namespace diff_drive_controller
     const double left_velocity_desired = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
     const double right_velocity_desired = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrl;
 
+    // Zero out if cmd_vel isn't finite:
+    if (!(std::isfinite(curr_cmd.lin) && std::isfinite(curr_cmd.ang)))
+    {
+      curr_cmd.lin = 0.0;
+      curr_cmd.ang = 0.0;
+
+      // @todo add a diagnostic message
+    }
+
     // Limit velocities and accelerations:
     // @todo add an option to limit the velocity considering the actual velocity
     limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, control_period);
