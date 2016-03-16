@@ -39,6 +39,8 @@
 #ifndef DIFF_DRIVE_CONTROLLER_JOINT_FEEDBACK_CHECKER_H
 #define DIFF_DRIVE_CONTROLLER_JOINT_FEEDBACK_CHECKER_H
 
+#include <cmath>
+
 namespace diff_drive_controller
 {
 
@@ -70,7 +72,13 @@ namespace diff_drive_controller
         const double settling_time = 1.0,
         const double error_band = 1e-1,
         const double error_estimate = 1e-2,
-        const double max_change = 10.0);
+        const double max_change = 10.0)
+      : settling_time_(settling_time)
+      , error_band_(error_band)
+      , error_estimate_(error_estimate)
+      , max_change_(max_change)
+    {
+    }
 
     /**
      * \brief Settling time getter.
@@ -151,7 +159,10 @@ namespace diff_drive_controller
      *               changed.
      * \return True, if the settling time has been met.
      */
-    bool isSettled(const double dt) const;
+    bool isSettled(const double dt) const
+    {
+      return dt > settling_time_;
+    }
 
     /**
      * \brief Check if the actual state has converged to the desired one
@@ -163,7 +174,20 @@ namespace diff_drive_controller
      *         the error band after the settling time.
      *         If the settling time has NOT been met yet, also returns True.
      */
-    bool hasConverged(const double error, const double dt) const;
+    bool hasConverged(const double error, const double dt) const
+    {
+      // Instead of:
+      //
+      //   if (isSettled(dt))
+      //   {
+      //     return std::abs(error) < error_band_;
+      //   }
+      //
+      //   return true;
+      //
+      // we use the following simplified expression:
+      return !isSettled(dt) || std::abs(error) < error_band_;
+    }
 
     /**
      * \brief Check that the actual state doesn't jump wrt the previous one,
@@ -177,7 +201,10 @@ namespace diff_drive_controller
      *         change.
      */
     bool isContinuous(
-        const double actual, const double previous, const double dt) const;
+        const double actual, const double previous, const double dt) const
+    {
+      return std::abs(actual - previous) < max_change_ * dt;
+    }
 
     /**
      * \brief Check that the actual state and the estimated one are NOT
@@ -189,7 +216,10 @@ namespace diff_drive_controller
      * \return True if the absolute difference between the actual and the actual
      * estimated state is smaller than the error estimate threshold.
      */
-    bool isDiscrepant(const double actual, const double actual_estimated) const;
+    bool isDiscrepant(const double actual, const double actual_estimated) const
+    {
+      return std::abs(actual - actual_estimated) > error_estimate_;
+    }
 
   private:
     // Settling time [s]:

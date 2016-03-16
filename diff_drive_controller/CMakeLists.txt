@@ -59,7 +59,6 @@ add_library(${PROJECT_NAME}
   src/linear_meas_covariance_model.cpp
   src/quadratic_meas_covariance_model.cpp
   src/integrate_function.cpp
-  src/joint_feedback_checker.cpp
   src/odometry.cpp
   src/speed_limiter.cpp)
 # Note that the entry for ${Ceres_LIBRARIES} was removed as we only used headers from that package
