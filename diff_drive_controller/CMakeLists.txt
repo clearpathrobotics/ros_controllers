@@ -92,6 +92,9 @@ if (CATKIN_ENABLE_TESTING)
   catkin_add_gtest(integrate_functor_test test/integrate_functor_test.cpp)
   target_link_libraries(integrate_functor_test ${PROJECT_NAME})
 
+  catkin_add_gtest(joint_feedback_checker_test test/joint_feedback_checker_test.cpp)
+  target_link_libraries(joint_feedback_checker_test ${PROJECT_NAME})
+
   catkin_add_gtest(odometry_test test/odometry_test.cpp)
   target_link_libraries(odometry_test ${PROJECT_NAME})
 
