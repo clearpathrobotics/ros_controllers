@@ -153,9 +153,8 @@ namespace diff_drive_controller
       const std::vector<T>& desired,
       const std::vector<T>& actual)
   {
-    const size_t n = err.size();
-
-    ROS_ASSERT(n == desired.size() && n == actual.size());
+    ROS_ASSERT(err.size() == desired.size());
+    ROS_ASSERT(err.size() == actual.size());
 
     // Compute: error = desired - actual
     std::transform(desired.begin(), desired.end(), actual.begin(),
