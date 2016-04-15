@@ -9,7 +9,9 @@ find_package(catkin REQUIRED
     controller_interface
     urdf
     realtime_tools
-    tf
+    tf2
+    tf2_msgs
+    tf2_geometry_msgs
     std_msgs
     geometry_msgs
     nav_msgs
@@ -84,7 +86,8 @@ if (CATKIN_ENABLE_TESTING)
       std_srvs
       controller_manager
       control_toolbox
-      tf)
+      tf2
+      tf2_ros)
 
   find_package(Eigen COMPONENTS)
 
