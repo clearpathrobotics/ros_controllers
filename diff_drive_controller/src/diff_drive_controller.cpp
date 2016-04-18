@@ -42,7 +42,7 @@
 #include <algorithm>
 #include <numeric>
 
-#include <tf/transform_datatypes.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <urdf_parser/urdf_parser.h>
 
@@ -736,13 +736,13 @@ namespace diff_drive_controller
       last_odom_publish_time_ = time;
 
       // Populate odom message and publish:
-      const geometry_msgs::Quaternion orientation(
-            tf::createQuaternionMsgFromYaw(odometry_.getHeading()));
+      tf2::Quaternion q;
+      q.setRPY(0.0, 0.0, odometry_.getHeading());
 
       odom_pub_->msg_.header.stamp = time;
       odom_pub_->msg_.pose.pose.position.x = odometry_.getX();
       odom_pub_->msg_.pose.pose.position.y = odometry_.getY();
-      odom_pub_->msg_.pose.pose.orientation = orientation;
+      odom_pub_->msg_.pose.pose.orientation = tf2::toMsg(q);
 
       odom_pub_->msg_.twist.twist.linear.x  = odometry_.getVx();
       odom_pub_->msg_.twist.twist.linear.y  = odometry_.getVy();
@@ -768,14 +768,14 @@ namespace diff_drive_controller
       last_odom_tf_publish_time_ = time;
 
       // Populate tf odometry frame message and publish:
-      const geometry_msgs::Quaternion orientation(
-            tf::createQuaternionMsgFromYaw(odometry_.getHeading()));
+      tf2::Quaternion q;
+      q.setRPY(0.0, 0.0, odometry_.getHeading());
 
       geometry_msgs::TransformStamped& odom_frame = tf_odom_pub_->msg_.transforms[0];
       odom_frame.header.stamp = time;
       odom_frame.transform.translation.x = odometry_.getX();
       odom_frame.transform.translation.y = odometry_.getY();
-      odom_frame.transform.rotation = orientation;
+      odom_frame.transform.rotation = tf2::toMsg(q);
       tf_odom_pub_->unlockAndPublish();
     }
 
@@ -1276,7 +1276,7 @@ namespace diff_drive_controller
     odom_pub_->msg_.twist.covariance.fill(0);
 
     /// Setup odometry realtime publisher
-    tf_odom_pub_.reset(new realtime_tools::RealtimePublisher<tf::tfMessage>(root_nh, "/tf", 100));
+    tf_odom_pub_.reset(new realtime_tools::RealtimePublisher<tf2_msgs::TFMessage>(root_nh, "/tf", 100));
     tf_odom_pub_->msg_.transforms.resize(1);
     tf_odom_pub_->msg_.transforms[0].transform.translation.z = 0.0;
     tf_odom_pub_->msg_.transforms[0].child_frame_id = base_frame_id_;

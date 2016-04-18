@@ -35,8 +35,10 @@
 #include <ros/ros.h>
 
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/TwistStamped.h>
 #include <nav_msgs/Odometry.h>
-#include <tf/tf.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/utils.h>
 #include <control_toolbox/pid.h>
 #include <angles/angles.h>
 
@@ -105,7 +107,11 @@ public:
     {
       // Retrieve current state:
       const nav_msgs::Odometry odom = getLastOdom();
-      const double yaw = tf::getYaw(odom.pose.pose.orientation);
+
+      tf2::Quaternion q;
+      tf2::fromMsg(odom.pose.pose.orientation, q);
+
+      const double yaw = tf2::getYaw(q);
 
       // Compute error wrt target:
       const double error = angles::shortest_angular_distance(yaw, target);
@@ -184,11 +190,6 @@ private:
   }
 
 };
-
-inline tf::Quaternion tfQuatFromGeomQuat(const geometry_msgs::Quaternion& quat)
-{
-  return tf::Quaternion(quat.x, quat.y, quat.z, quat.w);
-}
 
 void propagate(double& x, double& y, double& yaw,
     double v_x, double v_y, double v_yaw, double dt)

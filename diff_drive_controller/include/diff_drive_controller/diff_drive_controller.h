@@ -46,7 +46,7 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <diff_drive_controller/DiffDriveControllerState.h>
-#include <tf/tfMessage.h>
+#include <tf2_msgs/TFMessage.h>
 
 #include <dynamic_reconfigure/server.h>
 
@@ -148,7 +148,7 @@ namespace diff_drive_controller
 
     /// Odometry related:
     boost::shared_ptr<realtime_tools::RealtimePublisher<nav_msgs::Odometry> > odom_pub_;
-    boost::shared_ptr<realtime_tools::RealtimePublisher<tf::tfMessage> > tf_odom_pub_;
+    boost::shared_ptr<realtime_tools::RealtimePublisher<tf2_msgs::TFMessage> > tf_odom_pub_;
     Odometry odometry_;
 
     boost::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::TwistStamped> > cmd_vel_limited_pub_;

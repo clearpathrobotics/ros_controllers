@@ -33,7 +33,8 @@
 #include <diff_drive_controller/covariance.h>
 #include <diff_drive_controller/rigid_body_motion.h>
 
-#include <tf/transform_listener.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <limits>
 
@@ -68,13 +69,25 @@ TEST_F(DiffDriveControllerTest, testNoMove)
   EXPECT_NEAR(old_odom.pose.pose.position.z, new_odom.pose.pose.position.z, std::numeric_limits<double>::epsilon());
 
   // convert to rpy and test that way
+  tf2::Quaternion q_old;
+  tf2::Quaternion q_new;
+
+  tf2::fromMsg(old_odom.pose.pose.orientation, q_old);
+  tf2::fromMsg(new_odom.pose.pose.orientation, q_new);
+
+  const tf2::Matrix3x3 R_old(q_old);
+  const tf2::Matrix3x3 R_new(q_new);
+
   double roll_old, pitch_old, yaw_old;
   double roll_new, pitch_new, yaw_new;
-  tf::Matrix3x3(tfQuatFromGeomQuat(old_odom.pose.pose.orientation)).getRPY(roll_old, pitch_old, yaw_old);
-  tf::Matrix3x3(tfQuatFromGeomQuat(new_odom.pose.pose.orientation)).getRPY(roll_new, pitch_new, yaw_new);
+
+  R_old.getRPY(roll_old, pitch_old, yaw_old);
+  R_new.getRPY(roll_new, pitch_new, yaw_new);
+
   EXPECT_NEAR(roll_old , roll_new , std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(pitch_old, pitch_new, std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(yaw_old  , yaw_new  , std::numeric_limits<double>::epsilon());
+
   EXPECT_NEAR(0.0, new_odom.twist.twist.linear.x, std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(0.0, new_odom.twist.twist.linear.y, std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(0.0, new_odom.twist.twist.linear.z, std::numeric_limits<double>::epsilon());
@@ -86,7 +99,7 @@ TEST_F(DiffDriveControllerTest, testNoMove)
   // propagation
   double x = old_odom.pose.pose.position.x;
   double y = old_odom.pose.pose.position.y;
-  double yaw = tf::getYaw(old_odom.pose.pose.orientation);
+  double yaw = yaw_old;
 
   const double v_x = new_odom.twist.twist.linear.x;
   const double v_y = new_odom.twist.twist.linear.y;
@@ -97,8 +110,7 @@ TEST_F(DiffDriveControllerTest, testNoMove)
 
   EXPECT_NEAR(new_odom.pose.pose.position.x, x, std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(new_odom.pose.pose.position.y, y, std::numeric_limits<double>::epsilon());
-  EXPECT_NEAR(0.0, angles::shortest_angular_distance(yaw,
-        tf::getYaw(new_odom.pose.pose.orientation)), std::numeric_limits<double>::epsilon());
+  EXPECT_NEAR(0.0, angles::shortest_angular_distance(yaw, yaw_new), std::numeric_limits<double>::epsilon());
 
   // covariance
   using namespace diff_drive_controller;
@@ -138,9 +150,12 @@ TEST_F(DiffDriveControllerTest, testNoMove)
   // Take pose and twist state and covariance for the current odometry:
   const ros::Time t_0 = odoms[0].header.stamp;
 
+  tf2::Quaternion q_0;
+  tf2::fromMsg(odoms[0].pose.pose.orientation, q_0);
+
   const double x_0   = odoms[0].pose.pose.position.x;
   const double y_0   = odoms[0].pose.pose.position.y;
-  const double yaw_0 = tf::getYaw(odoms[0].pose.pose.orientation);
+  const double yaw_0 = tf2::getYaw(q_0);
 
   const double v_x_0   = odoms[0].twist.twist.linear.x;
   const double v_y_0   = odoms[0].twist.twist.linear.y;
@@ -155,9 +170,12 @@ TEST_F(DiffDriveControllerTest, testNoMove)
   // Take pose and twist state and covariance for the previous odometry:
   const ros::Time t_1 = odoms[1].header.stamp;
 
+  tf2::Quaternion q_1;
+  tf2::fromMsg(odoms[0].pose.pose.orientation, q_1);
+
   const double x_1   = odoms[1].pose.pose.position.x;
   const double y_1   = odoms[1].pose.pose.position.y;
-  const double yaw_1 = tf::getYaw(odoms[1].pose.pose.orientation);
+  const double yaw_1 = tf2::getYaw(q_1);
 
   PoseCovariance  pose_covariance_1;
   msgToCovariance(odoms[1].pose.covariance, pose_covariance_1, no_tag());
@@ -233,13 +251,25 @@ TEST_F(DiffDriveControllerTest, testForward)
   EXPECT_NEAR(0.0, dz, std::numeric_limits<double>::epsilon());
 
   // convert to rpy and test that way
+  tf2::Quaternion q_old;
+  tf2::Quaternion q_new;
+
+  tf2::fromMsg(old_odom.pose.pose.orientation, q_old);
+  tf2::fromMsg(new_odom.pose.pose.orientation, q_new);
+
+  const tf2::Matrix3x3 R_old(q_old);
+  const tf2::Matrix3x3 R_new(q_new);
+
   double roll_old, pitch_old, yaw_old;
   double roll_new, pitch_new, yaw_new;
-  tf::Matrix3x3(tfQuatFromGeomQuat(old_odom.pose.pose.orientation)).getRPY(roll_old, pitch_old, yaw_old);
-  tf::Matrix3x3(tfQuatFromGeomQuat(new_odom.pose.pose.orientation)).getRPY(roll_new, pitch_new, yaw_new);
+
+  R_old.getRPY(roll_old, pitch_old, yaw_old);
+  R_new.getRPY(roll_new, pitch_new, yaw_new);
+
   EXPECT_NEAR(roll_old , roll_new , std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(pitch_old, pitch_new, std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(yaw_old  , yaw_new  , std::numeric_limits<double>::epsilon());
+
   EXPECT_NEAR(cmd_vel.linear.x, new_odom.twist.twist.linear.x, EPS);
   EXPECT_NEAR(0.0, new_odom.twist.twist.linear.y, std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(0.0, new_odom.twist.twist.linear.z, std::numeric_limits<double>::epsilon());
@@ -251,7 +281,7 @@ TEST_F(DiffDriveControllerTest, testForward)
   // propagation
   double x = old_odom.pose.pose.position.x;
   double y = old_odom.pose.pose.position.y;
-  double yaw = tf::getYaw(old_odom.pose.pose.orientation);
+  double yaw = yaw_old;
 
   const double v_x = new_odom.twist.twist.linear.x;
   const double v_y = new_odom.twist.twist.linear.y;
@@ -262,8 +292,7 @@ TEST_F(DiffDriveControllerTest, testForward)
 
   EXPECT_NEAR(new_odom.pose.pose.position.x, x, EPS);
   EXPECT_NEAR(new_odom.pose.pose.position.y, y, std::numeric_limits<double>::epsilon());
-  EXPECT_NEAR(0.0, angles::shortest_angular_distance(yaw,
-        tf::getYaw(new_odom.pose.pose.orientation)), std::numeric_limits<double>::epsilon());
+  EXPECT_NEAR(0.0, angles::shortest_angular_distance(yaw, yaw_new), std::numeric_limits<double>::epsilon());
 
   // covariance
   using namespace diff_drive_controller;
@@ -290,9 +319,12 @@ TEST_F(DiffDriveControllerTest, testForward)
   // Take pose and twist state and covariance for the current odometry:
   const ros::Time t_0 = odoms[0].header.stamp;
 
+  tf2::Quaternion q_0;
+  tf2::fromMsg(odoms[0].pose.pose.orientation, q_0);
+
   const double x_0   = odoms[0].pose.pose.position.x;
   const double y_0   = odoms[0].pose.pose.position.y;
-  const double yaw_0 = tf::getYaw(odoms[0].pose.pose.orientation);
+  const double yaw_0 = tf2::getYaw(q_0);
 
   const double v_x_0   = odoms[0].twist.twist.linear.x;
   const double v_y_0   = odoms[0].twist.twist.linear.y;
@@ -307,9 +339,12 @@ TEST_F(DiffDriveControllerTest, testForward)
   // Take pose and twist state and covariance for the previous odometry:
   const ros::Time t_1 = odoms[1].header.stamp;
 
+  tf2::Quaternion q_1;
+  tf2::fromMsg(odoms[0].pose.pose.orientation, q_1);
+
   const double x_1   = odoms[1].pose.pose.position.x;
   const double y_1   = odoms[1].pose.pose.position.y;
-  const double yaw_1 = tf::getYaw(odoms[1].pose.pose.orientation);
+  const double yaw_1 = tf2::getYaw(q_1);
 
   PoseCovariance  pose_covariance_1;
   msgToCovariance(odoms[1].pose.covariance, pose_covariance_1, no_tag());
@@ -388,10 +423,21 @@ TEST_F(DiffDriveControllerTest, testTurn)
   EXPECT_NEAR(old_odom.pose.pose.position.z, new_odom.pose.pose.position.z, std::numeric_limits<double>::epsilon());
 
   // convert to rpy and test that way
+  tf2::Quaternion q_old;
+  tf2::Quaternion q_new;
+
+  tf2::fromMsg(old_odom.pose.pose.orientation, q_old);
+  tf2::fromMsg(new_odom.pose.pose.orientation, q_new);
+
+  const tf2::Matrix3x3 R_old(q_old);
+  const tf2::Matrix3x3 R_new(q_new);
+
   double roll_old, pitch_old, yaw_old;
   double roll_new, pitch_new, yaw_new;
-  tf::Matrix3x3(tfQuatFromGeomQuat(old_odom.pose.pose.orientation)).getRPY(roll_old, pitch_old, yaw_old);
-  tf::Matrix3x3(tfQuatFromGeomQuat(new_odom.pose.pose.orientation)).getRPY(roll_new, pitch_new, yaw_new);
+
+  R_old.getRPY(roll_old, pitch_old, yaw_old);
+  R_new.getRPY(roll_new, pitch_new, yaw_new);
+
   EXPECT_NEAR(roll_old , roll_new , std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(pitch_old, pitch_new, std::numeric_limits<double>::epsilon());
   EXPECT_NEAR(M_PI, fabs(yaw_new - yaw_old), ORIENTATION_TOLERANCE);
@@ -409,7 +455,7 @@ TEST_F(DiffDriveControllerTest, testTurn)
   // propagation
   double x = old_odom.pose.pose.position.x;
   double y = old_odom.pose.pose.position.y;
-  double yaw = tf::getYaw(old_odom.pose.pose.orientation);
+  double yaw = yaw_old;
 
   const double v_x = new_odom.twist.twist.linear.x;
   const double v_y = new_odom.twist.twist.linear.y;
@@ -422,8 +468,7 @@ TEST_F(DiffDriveControllerTest, testTurn)
   // Cannot use std::numeric_limits<double>::epsilon() in the next check because
   // it's to strict for the test_diff_drive_multipliers rostest:
   EXPECT_NEAR(new_odom.pose.pose.position.y, y, 1e-13);
-  EXPECT_NEAR(0.0, angles::shortest_angular_distance(yaw,
-        tf::getYaw(new_odom.pose.pose.orientation)), ORIENTATION_TOLERANCE);
+  EXPECT_NEAR(0.0, angles::shortest_angular_distance(yaw, yaw_new), ORIENTATION_TOLERANCE);
 
   // covariance
   using namespace diff_drive_controller;
@@ -450,9 +495,12 @@ TEST_F(DiffDriveControllerTest, testTurn)
   // Take pose and twist state and covariance for the current odometry:
   const ros::Time t_0 = odoms[0].header.stamp;
 
+  tf2::Quaternion q_0;
+  tf2::fromMsg(odoms[0].pose.pose.orientation, q_0);
+
   const double x_0   = odoms[0].pose.pose.position.x;
   const double y_0   = odoms[0].pose.pose.position.y;
-  const double yaw_0 = tf::getYaw(odoms[0].pose.pose.orientation);
+  const double yaw_0 = tf2::getYaw(q_0);
 
   const double v_x_0   = odoms[0].twist.twist.linear.x;
   const double v_y_0   = odoms[0].twist.twist.linear.y;
@@ -467,9 +515,12 @@ TEST_F(DiffDriveControllerTest, testTurn)
   // Take pose and twist state and covariance for the previous odometry:
   const ros::Time t_1 = odoms[1].header.stamp;
 
+  tf2::Quaternion q_1;
+  tf2::fromMsg(odoms[0].pose.pose.orientation, q_1);
+
   const double x_1   = odoms[1].pose.pose.position.x;
   const double y_1   = odoms[1].pose.pose.position.y;
-  const double yaw_1 = tf::getYaw(odoms[1].pose.pose.orientation);
+  const double yaw_1 = tf2::getYaw(q_1);
 
   PoseCovariance  pose_covariance_1;
   msgToCovariance(odoms[1].pose.covariance, pose_covariance_1, no_tag());
@@ -622,11 +673,13 @@ TEST_F(DiffDriveControllerTest, testOdomFrame)
   {
     ros::Duration(0.1).sleep();
   }
-  // set up tf listener
-  tf::TransformListener listener;
+  // set up tf buffer core
+  // @todo this doesn't work
+  tf2_ros::Buffer tf_buffer;
+  tf2_ros::TransformListener listener(tf_buffer);
   ros::Duration(2.0).sleep();
   // check the odom frame exist
-  EXPECT_TRUE(listener.frameExists("odom"));
+  EXPECT_TRUE(tf_buffer._frameExists("odom"));
 }
 
 int main(int argc, char** argv)
