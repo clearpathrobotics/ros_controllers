@@ -36,15 +36,11 @@
  * Author: Enrique Fernández
  */
 
-#include <algorithm>
-
 #include <diff_drive_controller/speed_limiter.h>
 
-template<typename T>
-T clamp(T x, T min, T max)
-{
-  return std::min(std::max(min, x), max);
-}
+#include <boost/algorithm/clamp.hpp>
+
+#include <algorithm>
 
 namespace diff_drive_controller
 {
@@ -93,7 +89,7 @@ namespace diff_drive_controller
 
     if (has_velocity_limits)
     {
-      v = clamp(v, min_velocity, max_velocity);
+      v = boost::algorithm::clamp(v, min_velocity, max_velocity);
     }
 
     return tmp != 0.0 ? v / tmp : 1.0;
@@ -143,7 +139,7 @@ namespace diff_drive_controller
         }
       }
 
-      const double dv = clamp(v - v0, dv_min, dv_max);
+      const double dv = boost::algorithm::clamp(v - v0, dv_min, dv_max);
 
       v = v0 + dv;
     }
@@ -165,7 +161,7 @@ namespace diff_drive_controller
       const double da_min = min_jerk * dt2;
       const double da_max = max_jerk * dt2;
 
-      const double da = clamp(dv - dv0, da_min, da_max);
+      const double da = boost::algorithm::clamp(dv - dv0, da_min, da_max);
 
       v = v0 + dv0 + da;
     }
