@@ -638,6 +638,8 @@ namespace diff_drive_controller
         if (std::isnan(left_positions_[i]) ||
             std::isnan(right_positions_[i]))
         {
+          brake();
+
           // @todo add a diagnostic message
           return;
         }
@@ -652,6 +654,8 @@ namespace diff_drive_controller
         if (std::isnan(left_velocities_[i]) ||
             std::isnan(right_velocities_[i]))
         {
+          brake();
+
           // @todo add a diagnostic message
           return;
         }
