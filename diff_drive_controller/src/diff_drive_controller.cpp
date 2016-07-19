@@ -808,7 +808,7 @@ namespace diff_drive_controller
 
     // Compute desired (not limited) wheel velocity:
     const double left_velocity_desired = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
-    const double right_velocity_desired = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrl;
+    const double right_velocity_desired = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
 
     // Zero out if cmd_vel isn't finite:
     if (!(std::isfinite(curr_cmd.lin) && std::isfinite(curr_cmd.ang)))
