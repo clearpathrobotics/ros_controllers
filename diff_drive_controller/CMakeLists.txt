@@ -43,7 +43,10 @@ catkin_package(
   CATKIN_DEPENDS
     message_runtime
     std_msgs
-    trajectory_msgs)
+    trajectory_msgs
+  DEPENDS
+    Boost
+    Eigen)
 
 include_directories(
   include
