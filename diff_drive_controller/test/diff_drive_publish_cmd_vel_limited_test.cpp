@@ -29,6 +29,8 @@
 
 #include "test_common.h"
 
+#include <limits>
+
 // TEST CASES
 TEST_F(DiffDriveControllerTest, testInsideLimits)
 {
@@ -54,8 +56,8 @@ TEST_F(DiffDriveControllerTest, testInsideLimits)
   const geometry_msgs::TwistStamped cmd_vel_limited = getLastCmdVelLimited();
 
   // check cmd_vel limited is the same as the requested one
-  EXPECT_EQ(cmd_vel.linear.x, cmd_vel_limited.twist.linear.x);
-  EXPECT_EQ(cmd_vel.angular.z, cmd_vel_limited.twist.angular.z);
+  EXPECT_NEAR(cmd_vel.linear.x, cmd_vel_limited.twist.linear.x, std::numeric_limits<double>::epsilon());
+  EXPECT_NEAR(cmd_vel.angular.z, cmd_vel_limited.twist.angular.z, std::numeric_limits<double>::epsilon());
 }
 
 TEST_F(DiffDriveControllerTest, testOutsideLimits)
