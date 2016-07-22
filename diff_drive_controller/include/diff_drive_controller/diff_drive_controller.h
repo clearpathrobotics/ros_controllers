@@ -58,6 +58,7 @@
 #include <diff_drive_controller/DiffDriveControllerConfig.h>
 
 #include <boost/timer/timer.hpp>
+#include <boost/function.hpp>
 
 #include <vector>
 #include <string>
@@ -80,6 +81,8 @@ namespace diff_drive_controller
       : public controller_interface::Controller<hardware_interface::VelocityJointInterface>
   {
   public:
+    typedef boost::function<void (double&, double&)> WheelSpeedLimiter;
+
     DiffDriveController();
 
     /**
@@ -111,6 +114,15 @@ namespace diff_drive_controller
      * \param time Current time
      */
     void stopping(const ros::Time& /*time*/);
+
+    /**
+     * \brief Wheel speed limiter setter
+     * \param wheel_speed_limiter Wheel speed limiter
+     */
+    void setWheelSpeedLimiter(WheelSpeedLimiter wheel_speed_limiter)
+    {
+      wheel_speed_limiter_ = wheel_speed_limiter;
+    }
 
   private:
     std::string name_;
@@ -272,6 +284,8 @@ namespace diff_drive_controller
     Commands last0_cmd_;
     SpeedLimiter limiter_lin_;
     SpeedLimiter limiter_ang_;
+
+    WheelSpeedLimiter wheel_speed_limiter_;
 
     /// Publish limited velocity command:
     /// Note that the realtime_tools::RealtimePublisher doesn't provide any

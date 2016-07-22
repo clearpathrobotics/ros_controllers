@@ -119,6 +119,16 @@ static bool getWheelRadius(
   return true;
 }
 
+/*
+ * \brief Dummy wheel speed limiter function
+ * \param [in, out] left_velocity  Left wheel velocity (not used)
+ * \param [in, out] right_velocity Right wheel velocity (not used)
+ */
+static void wheelSpeedLimiterDummy(double&, double&)
+{
+  // do nothing
+}
+
 namespace diff_drive_controller
 {
   static void resize(trajectory_msgs::JointTrajectoryPoint& msg,
@@ -211,6 +221,7 @@ namespace diff_drive_controller
     , base_frame_id_("base_link")
     , enable_odom_tf_(true)
     , wheel_joints_size_(0)
+    , wheel_speed_limiter_(wheelSpeedLimiterDummy)
     , publish_cmd_vel_limited_(config_default_.publish_cmd_vel_limited)
     , publish_state_(config_default_.publish_state)
     , control_frequency_desired_(config_default_.control_frequency_desired)
@@ -797,7 +808,7 @@ namespace diff_drive_controller
 
     // Compute desired (not limited) wheel velocity:
     const double left_velocity_desired = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
-    const double right_velocity_desired = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrl;
+    const double right_velocity_desired = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
 
     // Zero out if cmd_vel isn't finite:
     if (!(std::isfinite(curr_cmd.lin) && std::isfinite(curr_cmd.ang)))
@@ -808,17 +819,35 @@ namespace diff_drive_controller
       // @todo add a diagnostic message
     }
 
-    // Limit velocities and accelerations:
-    // @todo add an option to limit the velocity considering the actual velocity
+    // Limit velocities:
+    limiter_lin_.limit_velocity(curr_cmd.lin);
+    limiter_ang_.limit_velocity(curr_cmd.ang);
+
+    // Compute wheels velocities:
+    double left_velocity_limited  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
+    double right_velocity_limited = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
+
+    // Limit wheels velocities:
+    wheel_speed_limiter_(left_velocity_limited, right_velocity_limited);
+
+    // Compute linear and angular velocities:
+    // @todo provide method and share it with
+    // direct_kinematics_integrate_functor.h
+    const double vl =  left_velocity_limited * wrl;
+    const double vr = right_velocity_limited * wrr;
+    curr_cmd.lin = (vr + vl) * 0.5;
+    curr_cmd.ang = (vr - vl) / ws;
+
+    // Limit accelerations:
     limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, control_period);
     limiter_ang_.limit(curr_cmd.ang, last0_cmd_.ang, last1_cmd_.ang, control_period);
 
     last1_cmd_ = last0_cmd_;
     last0_cmd_ = curr_cmd;
 
-    // Compute wheels velocities:
-    const double left_velocity_limited  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
-    const double right_velocity_limited = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
+    // Compute/Update wheels velocities after enforcing the acceleration limits:
+    left_velocity_limited  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
+    right_velocity_limited = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
 
     // Set wheels velocities:
     for (size_t i = 0; i < wheel_joints_size_; ++i)
