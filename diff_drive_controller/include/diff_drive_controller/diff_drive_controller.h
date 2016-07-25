@@ -41,7 +41,6 @@
 
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
-#include <pluginlib/class_list_macros.h>
 
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -372,8 +371,6 @@ namespace diff_drive_controller
 
   };
 
-  PLUGINLIB_EXPORT_CLASS(diff_drive_controller::DiffDriveController,
-      controller_interface::ControllerBase);
 }  // namespace diff_drive_controller
 
 #endif // DIFF_DRIVE_CONTROLLER_H
