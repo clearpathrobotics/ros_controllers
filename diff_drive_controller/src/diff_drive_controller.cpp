@@ -119,15 +119,6 @@ static bool getWheelRadius(
   return true;
 }
 
-/*
- * \brief Dummy wheel speed limiter function
- * \param [in, out] left_velocity  Left wheel velocity (not used)
- * \param [in, out] right_velocity Right wheel velocity (not used)
- */
-static void wheelSpeedLimiterDummy(double&, double&)
-{
-  // do nothing
-}
 
 namespace diff_drive_controller
 {
@@ -221,7 +212,6 @@ namespace diff_drive_controller
     , base_frame_id_("base_link")
     , enable_odom_tf_(true)
     , wheel_joints_size_(0)
-    , wheel_speed_limiter_(wheelSpeedLimiterDummy)
     , publish_cmd_vel_limited_(config_default_.publish_cmd_vel_limited)
     , publish_state_(config_default_.publish_state)
     , control_frequency_desired_(config_default_.control_frequency_desired)
@@ -828,7 +818,7 @@ namespace diff_drive_controller
     double right_velocity_limited = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
 
     // Limit wheels velocities:
-    wheel_speed_limiter_(left_velocity_limited, right_velocity_limited);
+    wheelSpeedLimiter(left_velocity_limited, right_velocity_limited);
 
     // Compute linear and angular velocities:
     // @todo provide method and share it with
