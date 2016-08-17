@@ -123,6 +123,43 @@ namespace diff_drive_controller
       wheel_speed_limiter_ = wheel_speed_limiter;
     }
 
+  protected:
+    /**
+     * \brief Default wheel speed limiter function
+     * \param [in, out] left_velocity  Left wheel velocity (not used)
+     * \param [in, out] right_velocity Right wheel velocity (not used)
+     */
+    virtual void wheelSpeedLimiter(double& left, double& right)
+    {
+      if (wheel_speed_limiter_)
+      {
+        wheel_speed_limiter_(left, right);
+      }
+    }
+
+    /**
+     * \brief Brakes the wheels, i.e. sets the velocity to 0
+     */
+    void brake();
+
+    /// Wheel radius (assuming it's the same for the left and right wheels):
+    double wheel_radius_;
+
+    /// Wheel separation, wrt the midpoint of the wheel width:
+    double wheel_separation_;
+
+    /// Wheel separation and radius calibration multipliers:
+    double wheel_separation_multiplier_;
+    double left_wheel_radius_multiplier_;
+    double right_wheel_radius_multiplier_;
+
+    /// Positions and velocities from the encoders:
+    std::vector<double> left_positions_;
+    std::vector<double> right_positions_;
+
+    std::vector<double> left_velocities_;
+    std::vector<double> right_velocities_;
+
   private:
     std::string name_;
 
@@ -165,12 +202,6 @@ namespace diff_drive_controller
     boost::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::TwistStamped> > cmd_vel_limited_pub_;
 
     boost::shared_ptr<realtime_tools::RealtimePublisher<DiffDriveControllerState> > state_pub_;
-
-    std::vector<double> left_positions_;
-    std::vector<double> right_positions_;
-
-    std::vector<double> left_velocities_;
-    std::vector<double> right_velocities_;
 
     std::vector<double> left_positions_estimated_;
     std::vector<double> right_positions_estimated_;
@@ -249,17 +280,6 @@ namespace diff_drive_controller
     realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
     DynamicParams dynamic_params_struct_;
 
-    /// Wheel separation, wrt the midpoint of the wheel width:
-    double wheel_separation_;
-
-    /// Wheel radius (assuming it's the same for the left and right wheels):
-    double wheel_radius_;
-
-    /// Wheel separation and radius calibration multipliers:
-    double wheel_separation_multiplier_;
-    double left_wheel_radius_multiplier_;
-    double right_wheel_radius_multiplier_;
-
     /// Measurement Covariance Model multipliers:
     double k_l_;
     double k_r_;
@@ -317,11 +337,6 @@ namespace diff_drive_controller
     std::string integrate_method_;
     std::string integrate_differentiation_;
   private:
-    /**
-     * \brief Brakes the wheels, i.e. sets the velocity to 0
-     */
-    void brake();
-
     /**
      * \brief Velocity command callback
      * \param command Velocity command message (twist)
