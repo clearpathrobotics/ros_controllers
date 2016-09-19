@@ -37,6 +37,9 @@ generate_messages(
 
 generate_dynamic_reconfigure_options(cfg/DiffDriveController.cfg)
 
+# We intentionally only export the non-plugin library. Packages which find_package this package
+# should still only be linking against the non-plugin library (for example, to compile a
+# derived controller which is itself a plugin).
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
@@ -74,7 +77,7 @@ add_library(${PROJECT_NAME}_plugin
   src/diff_drive_controller_plugin.cpp)
 target_link_libraries(${PROJECT_NAME}_plugin ${PROJECT_NAME})
 
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_plugin
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
