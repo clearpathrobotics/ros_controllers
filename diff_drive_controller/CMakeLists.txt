@@ -47,6 +47,7 @@ catkin_package(
     message_runtime
     std_msgs
     trajectory_msgs
+    urdf
   DEPENDS
     Boost
     Eigen)
