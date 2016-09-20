@@ -120,24 +120,30 @@ namespace diff_drive_controller
      * \brief Wheel speed limiter setter
      * \param wheel_speed_limiter Wheel speed limiter
      */
-    void setWheelSpeedLimiter(WheelSpeedLimiter wheel_speed_limiter)
-    {
-      wheel_speed_limiter_ = wheel_speed_limiter;
-    }
+    void setWheelSpeedLimiter(WheelSpeedLimiter wheel_speed_limiter);
 
   protected:
     /**
-     * \brief Default wheel speed limiter function
+     * \brief Default wheel speed limiter function, can be overridden
+     *        in a controller which extends this one.
      * \param [in, out] left_velocity  Left wheel velocity (not used)
      * \param [in, out] right_velocity Right wheel velocity (not used)
      */
-    virtual void wheelSpeedLimiter(double& left, double& right)
-    {
-      if (wheel_speed_limiter_)
-      {
-        wheel_speed_limiter_(left, right);
-      }
-    }
+    virtual void wheelSpeedLimiter(double& left, double& right);
+
+    /**
+     * \brief Velocity command callback
+     * \param command Velocity command message (twist)
+     */
+    void cmdVelCallback(const geometry_msgs::Twist& command);
+
+    /**
+     * \brief Reconfigure callback
+     * \param [in, out] config Input new desired configuration and
+     *                         output applied configuration
+     * \param [in]      level  Reconfigure level
+     */
+    void reconfigureCallback(DiffDriveControllerConfig& config, uint32_t level);
 
     /**
      * \brief Brakes the wheels, i.e. sets the velocity to 0
@@ -338,20 +344,6 @@ namespace diff_drive_controller
     /// and differentiation scheme, which can be: "analytic", "autodiff"
     std::string integrate_method_;
     std::string integrate_differentiation_;
-  private:
-    /**
-     * \brief Velocity command callback
-     * \param command Velocity command message (twist)
-     */
-    void cmdVelCallback(const geometry_msgs::Twist& command);
-
-    /**
-     * \brief Reconfigure callback
-     * \param [in, out] config Input new desired configuration and
-     *                         output applied configuration
-     * \param [in]      level  Reconfigure level
-     */
-    void reconfigureCallback(DiffDriveControllerConfig& config, uint32_t level);
 
     /**
      * \brief Get the wheel names from a wheel param

@@ -1044,6 +1044,19 @@ namespace diff_drive_controller
     brake();
   }
 
+  void DiffDriveController::setWheelSpeedLimiter(WheelSpeedLimiter wheel_speed_limiter)
+  {
+    wheel_speed_limiter_ = wheel_speed_limiter;
+  }
+
+  void DiffDriveController::wheelSpeedLimiter(double& left, double& right)
+  {
+    if (wheel_speed_limiter_)
+    {
+      wheel_speed_limiter_(left, right);
+    }
+  }
+
   void DiffDriveController::brake()
   {
     const double vel = 0.0;
