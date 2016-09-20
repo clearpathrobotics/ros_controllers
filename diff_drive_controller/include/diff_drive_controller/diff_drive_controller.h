@@ -84,6 +84,8 @@ namespace diff_drive_controller
 
     DiffDriveController();
 
+    virtual ~DiffDriveController();
+
     /**
      * \brief Initialize controller
      * \param hw            Velocity joint interface for the wheels
