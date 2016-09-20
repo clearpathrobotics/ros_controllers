@@ -222,6 +222,10 @@ namespace diff_drive_controller
   {
   }
 
+  DiffDriveController::~DiffDriveController()
+  {
+  }
+
   bool DiffDriveController::init(hardware_interface::VelocityJointInterface* hw,
             ros::NodeHandle& root_nh,
             ros::NodeHandle &controller_nh)
