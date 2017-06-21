@@ -817,6 +817,12 @@ namespace diff_drive_controller
     limiter_lin_.limit_velocity(curr_cmd.lin);
     limiter_ang_.limit_velocity(curr_cmd.ang);
 
+    // We limit the accelerations before passing the speeds to wheelSpeedLimiter()
+    // to get a more accurate version of the commanded left and right wheel speeds.
+    // Limit accelerations:
+    limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, control_period);
+    limiter_ang_.limit(curr_cmd.ang, last0_cmd_.ang, last1_cmd_.ang, control_period);
+
     // Compute wheels velocities:
     double left_velocity_limited  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
     double right_velocity_limited = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
@@ -832,6 +838,7 @@ namespace diff_drive_controller
     curr_cmd.lin = (vr + vl) * 0.5;
     curr_cmd.ang = (vr - vl) / ws;
 
+    // We apply the accelerations limits again to smooth out any jumps introduced by wheelSpeedLimiter().
     // Limit accelerations:
     limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, control_period);
     limiter_ang_.limit(curr_cmd.ang, last0_cmd_.ang, last1_cmd_.ang, control_period);
