@@ -378,6 +378,11 @@ namespace diff_drive_controller
     void setOdomPubFields(
         ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh);
 
+
+    /// Determines if acceleration limits should be applied prior calling wheelSpeedLimiter
+    /// Applying the accelerations will provide a much more accurate command estimate,
+    /// however older wheelSpeedLimiter functions have been tuned to unrestricted input commands.
+    bool limit_accel_before_wheel_speed_limiter_;
   };
 
 }  // namespace diff_drive_controller

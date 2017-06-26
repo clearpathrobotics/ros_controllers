@@ -219,6 +219,7 @@ namespace diff_drive_controller
     , meas_covariance_model_("linear")
     , integrate_method_("exact")
     , integrate_differentiation_("analytic")
+    , limit_accel_before_wheel_speed_limiter_(false)
   {
   }
 
@@ -415,6 +416,8 @@ namespace diff_drive_controller
     controller_nh.param("angular/z/min_deceleration"       , limiter_ang_.min_deceleration       ,  limiter_ang_.min_acceleration      );
     controller_nh.param("angular/z/max_jerk"               , limiter_ang_.max_jerk               ,  limiter_ang_.max_jerk              );
     controller_nh.param("angular/z/min_jerk"               , limiter_ang_.min_jerk               , -limiter_ang_.max_jerk              );
+
+    controller_nh.param("limit_accel_before_wheel_speed_limiter", limit_accel_before_wheel_speed_limiter_, limit_accel_before_wheel_speed_limiter_);
 
     // If either parameter is not available, we need to look up the value in the URDF
     bool lookup_wheel_separation = !controller_nh.getParam("wheel_separation", wheel_separation_);
@@ -817,11 +820,14 @@ namespace diff_drive_controller
     limiter_lin_.limit_velocity(curr_cmd.lin);
     limiter_ang_.limit_velocity(curr_cmd.ang);
 
-    // We limit the accelerations before passing the speeds to wheelSpeedLimiter()
-    // to get a more accurate version of the commanded left and right wheel speeds.
-    // Limit accelerations:
-    limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, control_period);
-    limiter_ang_.limit(curr_cmd.ang, last0_cmd_.ang, last1_cmd_.ang, control_period);
+    if (limit_accel_before_wheel_speed_limiter_)
+    {
+      // We limit the accelerations before passing the speeds to wheelSpeedLimiter()
+      // to get a more accurate version of the commanded left and right wheel speeds.
+      // Limit accelerations:
+      limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, control_period);
+      limiter_ang_.limit(curr_cmd.ang, last0_cmd_.ang, last1_cmd_.ang, control_period);
+    }
 
     // Compute wheels velocities:
     double left_velocity_limited  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
