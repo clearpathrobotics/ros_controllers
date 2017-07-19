@@ -46,6 +46,7 @@ catkin_package(
   CATKIN_DEPENDS
     message_runtime
     std_msgs
+    tf2_msgs
     trajectory_msgs
     urdf
   DEPENDS
