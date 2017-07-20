@@ -46,6 +46,7 @@ catkin_package(
   CATKIN_DEPENDS
     dynamic_reconfigure
     message_runtime
+    realtime_tools
     std_msgs
     tf2_msgs
     trajectory_msgs
