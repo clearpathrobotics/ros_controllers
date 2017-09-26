@@ -417,6 +417,19 @@ namespace diff_drive_controller
     controller_nh.param("angular/z/max_jerk"               , limiter_ang_.max_jerk               ,  limiter_ang_.max_jerk              );
     controller_nh.param("angular/z/min_jerk"               , limiter_ang_.min_jerk               , -limiter_ang_.max_jerk              );
 
+    // Limits linear velocity and acceleration along body frame X axis of each individual wheel.
+    controller_nh.param("wheel/x/has_velocity_limits"    , limiter_wheel_.has_velocity_limits    , limiter_wheel_.has_velocity_limits    );
+    controller_nh.param("wheel/x/has_acceleration_limits", limiter_wheel_.has_acceleration_limits, limiter_wheel_.has_acceleration_limits);
+    controller_nh.param("wheel/x/has_jerk_limits"        , limiter_wheel_.has_jerk_limits        , limiter_wheel_.has_jerk_limits        );
+    controller_nh.param("wheel/x/max_velocity"           , limiter_wheel_.max_velocity           ,  limiter_wheel_.max_velocity          );
+    controller_nh.param("wheel/x/min_velocity"           , limiter_wheel_.min_velocity           , -limiter_wheel_.max_velocity          );
+    controller_nh.param("wheel/x/max_acceleration"       , limiter_wheel_.max_acceleration       ,  limiter_wheel_.max_acceleration      );
+    controller_nh.param("wheel/x/min_acceleration"       , limiter_wheel_.min_acceleration       , -limiter_wheel_.max_acceleration      );
+    controller_nh.param("wheel/x/max_deceleration"       , limiter_wheel_.max_deceleration       ,  limiter_wheel_.max_acceleration      );
+    controller_nh.param("wheel/x/min_deceleration"       , limiter_wheel_.min_deceleration       ,  limiter_wheel_.min_acceleration      );
+    controller_nh.param("wheel/x/max_jerk"               , limiter_wheel_.max_jerk               ,  limiter_wheel_.max_jerk              );
+    controller_nh.param("wheel/x/min_jerk"               , limiter_wheel_.min_jerk               , -limiter_wheel_.max_jerk              );
+
     controller_nh.param("limit_accel_before_wheel_speed_limiter", limit_accel_before_wheel_speed_limiter_, limit_accel_before_wheel_speed_limiter_);
 
     // If either parameter is not available, we need to look up the value in the URDF
@@ -839,8 +852,8 @@ namespace diff_drive_controller
     // Compute linear and angular velocities:
     // @todo provide method and share it with
     // direct_kinematics_integrate_functor.h
-    const double vl =  left_velocity_limited * wrl;
-    const double vr = right_velocity_limited * wrr;
+    double vl =  left_velocity_limited * wrl;
+    double vr = right_velocity_limited * wrr;
     curr_cmd.lin = (vr + vl) * 0.5;
     curr_cmd.ang = (vr - vl) / ws;
 
@@ -849,12 +862,16 @@ namespace diff_drive_controller
     limiter_lin_.limit(curr_cmd.lin, last0_cmd_.lin, last1_cmd_.lin, control_period);
     limiter_ang_.limit(curr_cmd.ang, last0_cmd_.ang, last1_cmd_.ang, control_period);
 
-    last1_cmd_ = last0_cmd_;
-    last0_cmd_ = curr_cmd;
-
     // Compute/Update wheels velocities after enforcing the acceleration limits:
-    left_velocity_limited  = (curr_cmd.lin - curr_cmd.ang * ws / 2.0)/wrl;
-    right_velocity_limited = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
+    vl = curr_cmd.lin - curr_cmd.ang * ws / 2.0;
+    vr = curr_cmd.lin + curr_cmd.ang * ws / 2.0;
+
+    // Limit individual wheel speeds/accelerations/jerk if configured
+    limiter_wheel_.limit(vl, last0_cmd_.left, last1_cmd_.left, control_period);
+    limiter_wheel_.limit(vr, last0_cmd_.right, last1_cmd_.right, control_period);
+
+    left_velocity_limited  = vl / wrl;
+    right_velocity_limited = vr / wrr;
 
     // Set wheels velocities:
     for (size_t i = 0; i < wheel_joints_size_; ++i)
@@ -862,6 +879,12 @@ namespace diff_drive_controller
       left_wheel_joints_[i].setCommand(left_velocity_limited);
       right_wheel_joints_[i].setCommand(right_velocity_limited);
     }
+
+    // Store the individual wheel commands, and update the command history
+    curr_cmd.left = vl;
+    curr_cmd.right = vr;
+    last1_cmd_ = last0_cmd_;
+    last0_cmd_ = curr_cmd;
 
     // Publish limited velocity command:
     if (publish_cmd_vel_limited_ && cmd_vel_limited_pub_->trylock())

@@ -194,9 +194,11 @@ namespace diff_drive_controller
     {
       double lin;
       double ang;
+      double left;
+      double right;
       ros::Time stamp;
 
-      Commands() : lin(0.0), ang(0.0), stamp(0.0) {}
+      Commands() : lin(0.0), ang(0.0), left(0.0), right(0.0), stamp(0.0) {}
     };
     realtime_tools::RealtimeBuffer<Commands> command_;
     Commands command_struct_;
@@ -311,6 +313,7 @@ namespace diff_drive_controller
     Commands last0_cmd_;
     SpeedLimiter limiter_lin_;
     SpeedLimiter limiter_ang_;
+    SpeedLimiter limiter_wheel_;
 
     WheelSpeedLimiter wheel_speed_limiter_;
 
@@ -377,7 +380,6 @@ namespace diff_drive_controller
      */
     void setOdomPubFields(
         ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh);
-
 
     /// Determines if acceleration limits should be applied prior calling wheelSpeedLimiter
     /// Applying the accelerations will provide a much more accurate command estimate,
