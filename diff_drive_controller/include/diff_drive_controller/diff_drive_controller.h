@@ -80,7 +80,7 @@ namespace diff_drive_controller
       : public controller_interface::Controller<hardware_interface::VelocityJointInterface>
   {
   public:
-    typedef boost::function<void (double&, double&)> WheelSpeedLimiter;
+    typedef boost::function<void (double&, double&, double, double)> WheelSpeedLimiter;
 
     DiffDriveController();
 
@@ -126,10 +126,13 @@ namespace diff_drive_controller
     /**
      * \brief Default wheel speed limiter function, can be overridden
      *        in a controller which extends this one.
-     * \param [in, out] left_velocity  Left wheel velocity (not used)
-     * \param [in, out] right_velocity Right wheel velocity (not used)
+     * \param [in, out] left_command  Commanded left wheel velocity.
+     * \param [in, out] right_command Commanded right wheel velocity.
+     * \param [in]      left_desired  Desired left wheel velocity.
+     * \param [in]      right_desired Desired right wheel velocity.
      */
-    virtual void wheelSpeedLimiter(double& left, double& right);
+    virtual void wheelSpeedLimiter(double& left_command, double& right_command,
+                                   double left_desired, double right_desired);
 
     /**
      * \brief Velocity command callback

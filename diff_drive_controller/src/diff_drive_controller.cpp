@@ -834,7 +834,7 @@ namespace diff_drive_controller
     double right_velocity_limited = (curr_cmd.lin + curr_cmd.ang * ws / 2.0)/wrr;
 
     // Limit wheels velocities:
-    wheelSpeedLimiter(left_velocity_limited, right_velocity_limited);
+    wheelSpeedLimiter(left_velocity_limited, right_velocity_limited, left_velocity_desired, right_velocity_desired);
 
     // Compute linear and angular velocities:
     // @todo provide method and share it with
@@ -1062,11 +1062,12 @@ namespace diff_drive_controller
     wheel_speed_limiter_ = wheel_speed_limiter;
   }
 
-  void DiffDriveController::wheelSpeedLimiter(double& left, double& right)
+  void DiffDriveController::wheelSpeedLimiter(double& left_command, double& right_command,
+                                              double left_desired, double right_desired)
   {
     if (wheel_speed_limiter_)
     {
-      wheel_speed_limiter_(left, right);
+      wheel_speed_limiter_(left_command, right_command, left_desired, right_desired);
     }
   }
 
