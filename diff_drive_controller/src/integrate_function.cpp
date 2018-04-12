@@ -79,33 +79,39 @@ IntegrateFunction::Ptr IntegrateFunction::create(const std::string& method,
   {
     if (differentiation == "analytic")
     {
-      return boost::make_shared<AnalyticEulerIntegrateFunction>();
+      return boost::allocate_shared<AnalyticEulerIntegrateFunction>(
+          Eigen::aligned_allocator<AnalyticEulerIntegrateFunction>());
     }
     else if (differentiation == "autodiff")
     {
-      return boost::make_shared<AutoDiffEulerIntegrateFunction>();
+      return boost::allocate_shared<AutoDiffEulerIntegrateFunction>(
+          Eigen::aligned_allocator<AutoDiffEulerIntegrateFunction>());
     }
   }
   else if (method == "rungekutta2")
   {
     if (differentiation == "analytic")
     {
-      return boost::make_shared<AnalyticRungeKutta2IntegrateFunction>();
+      return boost::allocate_shared<AnalyticRungeKutta2IntegrateFunction>(
+          Eigen::aligned_allocator<AnalyticRungeKutta2IntegrateFunction>());
     }
     else if (differentiation == "autodiff")
     {
-      return boost::make_shared<AutoDiffRungeKutta2IntegrateFunction>();
+      return boost::allocate_shared<AutoDiffRungeKutta2IntegrateFunction>(
+          Eigen::aligned_allocator<AutoDiffRungeKutta2IntegrateFunction>());
     }
   }
   else if (method == "exact")
   {
     if (differentiation == "analytic")
     {
-      return boost::make_shared<AnalyticExactIntegrateFunction>();
+      return boost::allocate_shared<AnalyticExactIntegrateFunction>(
+          Eigen::aligned_allocator<AnalyticExactIntegrateFunction>());
     }
     else if (differentiation == "autodiff")
     {
-      return boost::make_shared<AutoDiffExactIntegrateFunction>();
+      return boost::allocate_shared<AutoDiffExactIntegrateFunction>(
+          Eigen::aligned_allocator<AutoDiffExactIntegrateFunction>());
     }
   }
 

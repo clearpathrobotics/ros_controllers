@@ -50,11 +50,11 @@ MeasCovarianceModel::Ptr MeasCovarianceModel::create(const std::string& model)
 {
   if (model == "linear")
   {
-    return boost::make_shared<LinearMeasCovarianceModel>();
+    return boost::allocate_shared<LinearMeasCovarianceModel>(Eigen::aligned_allocator<LinearMeasCovarianceModel>());
   }
   else if (model == "quadratic")
   {
-    return boost::make_shared<QuadraticMeasCovarianceModel>();
+    return boost::allocate_shared<QuadraticMeasCovarianceModel>(Eigen::aligned_allocator<QuadraticMeasCovarianceModel>());
   }
 
   return Ptr();
