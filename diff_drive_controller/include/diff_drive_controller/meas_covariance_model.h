@@ -55,6 +55,8 @@ namespace diff_drive_controller
       /// Meas(urement) covariance type:
       typedef Eigen::Matrix2d MeasCovariance;
 
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
       /// Pointer types:
       typedef boost::shared_ptr<MeasCovarianceModel> Ptr;
 
