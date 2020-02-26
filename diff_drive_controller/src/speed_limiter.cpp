@@ -36,15 +36,11 @@
  * Author: Enrique Fernández
  */
 
-#include <algorithm>
-
 #include <diff_drive_controller/speed_limiter.h>
 
-template<typename T>
-T clamp(T x, T min, T max)
-{
-  return std::min(std::max(min, x), max);
-}
+#include <boost/algorithm/clamp.hpp>
+
+#include <algorithm>
 
 namespace diff_drive_controller
 {
@@ -58,7 +54,9 @@ namespace diff_drive_controller
     double min_acceleration,
     double max_acceleration,
     double min_jerk,
-    double max_jerk
+    double max_jerk,
+    double min_deceleration,
+    double max_deceleration
   )
   : has_velocity_limits(has_velocity_limits)
   , has_acceleration_limits(has_acceleration_limits)
@@ -69,6 +67,8 @@ namespace diff_drive_controller
   , max_acceleration(max_acceleration)
   , min_jerk(min_jerk)
   , max_jerk(max_jerk)
+  , min_deceleration(min_deceleration)
+  , max_deceleration(max_deceleration)
   {
   }
 
@@ -89,7 +89,7 @@ namespace diff_drive_controller
 
     if (has_velocity_limits)
     {
-      v = clamp(v, min_velocity, max_velocity);
+      v = boost::algorithm::clamp(v, min_velocity, max_velocity);
     }
 
     return tmp != 0.0 ? v / tmp : 1.0;
@@ -101,10 +101,45 @@ namespace diff_drive_controller
 
     if (has_acceleration_limits)
     {
-      const double dv_min = min_acceleration * dt;
-      const double dv_max = max_acceleration * dt;
+      double dv_min, dv_max;
 
-      const double dv = clamp(v - v0, dv_min, dv_max);
+      if (v0 >= 0.0 && v >= 0.0)
+      {
+        // Moving in positive direction
+        dv_min = min_deceleration * dt;
+        dv_max = max_acceleration * dt;
+      }
+      else if (v0 <= 0.0 && v <= 0.0)
+      {
+        // Moving in the negative direction
+        dv_min = min_acceleration * dt;
+        dv_max = max_deceleration * dt;
+      }
+      else
+      {
+        // Transitioning from positive to negative velocity
+        if (v0 > 0)
+        {
+          dv_max = v0;
+          dv_min = min_deceleration * dt;
+          if (v0 + dv_min < 0)
+          {
+            dv_min = min_acceleration * (dt - v0 / min_deceleration);
+          }
+        }
+        // Transitioning from negative to positive velocity
+        else // if (v0 < 0)
+        {
+          dv_min = v0;
+          dv_max = max_deceleration * dt;
+          if (v0 + dv_max > 0)
+          {
+            dv_max = max_acceleration * (dt - v0 / max_deceleration);
+          }
+        }
+      }
+
+      const double dv = boost::algorithm::clamp(v - v0, dv_min, dv_max);
 
       v = v0 + dv;
     }
@@ -126,7 +161,7 @@ namespace diff_drive_controller
       const double da_min = min_jerk * dt2;
       const double da_max = max_jerk * dt2;
 
-      const double da = clamp(dv - dv0, da_min, da_max);
+      const double da = boost::algorithm::clamp(dv - dv0, da_min, da_max);
 
       v = v0 + dv0 + da;
     }
@@ -134,4 +169,4 @@ namespace diff_drive_controller
     return tmp != 0.0 ? v / tmp : 1.0;
   }
 
-} // namespace diff_drive_controller
+}  // namespace diff_drive_controller

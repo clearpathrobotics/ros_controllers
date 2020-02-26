@@ -33,40 +33,58 @@
  *********************************************************************/
 
 /*
- * Author: Bence Magyar, Enrique Fernández
+ * Author: Enrique Fernández
  */
 
-#include <control_msgs/JointTrajectoryControllerState.h>
+#ifndef DIFF_DRIVE_CONTROLLER_H
+#define DIFF_DRIVE_CONTROLLER_H
+
 #include <controller_interface/controller.h>
-#include <diff_drive_controller/DiffDriveControllerConfig.h>
-#include <diff_drive_controller/odometry.h>
-#include <diff_drive_controller/speed_limiter.h>
-#include <dynamic_reconfigure/server.h>
-#include <geometry_msgs/TwistStamped.h>
 #include <hardware_interface/joint_command_interface.h>
-#include <memory>
+
 #include <nav_msgs/Odometry.h>
-#include <pluginlib/class_list_macros.hpp>
+#include <geometry_msgs/TwistStamped.h>
+#include <diff_drive_controller/DiffDriveControllerState.h>
+#include <tf2_msgs/TFMessage.h>
+
+#include <dynamic_reconfigure/server.h>
+
 #include <realtime_tools/realtime_buffer.h>
 #include <realtime_tools/realtime_publisher.h>
-#include <tf/tfMessage.h>
 
-namespace diff_drive_controller{
+#include <diff_drive_controller/odometry.h>
+#include <diff_drive_controller/speed_limiter.h>
+#include <diff_drive_controller/DiffDriveControllerConfig.h>
+
+#include <boost/timer/timer.hpp>
+#include <boost/function.hpp>
+
+#include <vector>
+#include <string>
+
+namespace diff_drive_controller
+{
 
   /**
    * This class makes some assumptions on the model of the robot:
    *  - the rotation axes of wheels are collinear
    *  - the wheels are identical in radius
-   * Additional assumptions to not duplicate information readily available in the URDF:
+   * Additional assumptions to not duplicate information readily available in
+   * the URDF:
    *  - the wheels have the same parent frame
-   *  - a wheel collision geometry is a cylinder or sphere in the urdf
-   *  - a wheel joint frame center's vertical projection on the floor must lie within the contact patch
+   *  - a wheel collision geometry is a cylinder in the urdf
+   *  - a wheel joint frame center's vertical projection on the floor must lie
+   *  within the contact patch
    */
   class DiffDriveController
       : public controller_interface::Controller<hardware_interface::VelocityJointInterface>
   {
   public:
+    typedef boost::function<void (double&, double&, double, double)> WheelSpeedLimiter;
+
     DiffDriveController();
+
+    virtual ~DiffDriveController();
 
     /**
      * \brief Initialize controller
@@ -79,7 +97,8 @@ namespace diff_drive_controller{
               ros::NodeHandle &controller_nh);
 
     /**
-     * \brief Updates controller, i.e. computes the odometry and sets the new velocity commands
+     * \brief Updates controller, i.e. computes the odometry and sets the new
+     * velocity commands
      * \param time   Current time
      * \param period Time since the last called to update
      */
@@ -97,28 +116,85 @@ namespace diff_drive_controller{
      */
     void stopping(const ros::Time& /*time*/);
 
+    /**
+     * \brief Wheel speed limiter setter
+     * \param wheel_speed_limiter Wheel speed limiter
+     */
+    void setWheelSpeedLimiter(WheelSpeedLimiter wheel_speed_limiter);
+
+  protected:
+    /**
+     * \brief Default wheel speed limiter function, can be overridden
+     *        in a controller which extends this one.
+     * \param [in, out] left_command  The next velocity command to be sent to the left wheel subject to velocity and
+     *                                acceleration constraints. [rad/s]
+     * \param [in, out] right_command The next velocity command to be sent to the right wheel subject to velocity and
+     *                                acceleration constraints. [rad/s]
+     * \param [in]      left_desired  The desired left wheel velocity at steady state (i.e. after it has finished
+     *                                accelerating/decelerating). [rad/s]
+     * \param [in]      right_desired The desired right wheel velocity at steady state (i.e. after it has finished
+     *                                accelerating/decelerating). [rad/s]
+     */
+    virtual void wheelSpeedLimiter(double& left_command, double& right_command,
+                                   double left_desired, double right_desired);
+
+    /**
+     * \brief Velocity command callback
+     * \param command Velocity command message (twist)
+     */
+    void cmdVelCallback(const geometry_msgs::Twist& command);
+
+    /**
+     * \brief Reconfigure callback
+     * \param [in, out] config Input new desired configuration and
+     *                         output applied configuration
+     * \param [in]      level  Reconfigure level
+     */
+    void reconfigureCallback(DiffDriveControllerConfig& config, uint32_t level);
+
+    /**
+     * \brief Brakes the wheels, i.e. sets the velocity to 0
+     */
+    void brake();
+
+    /// Wheel radius (assuming it's the same for the left and right wheels):
+    double wheel_radius_;
+
+    /// Wheel separation, wrt the midpoint of the wheel width:
+    double wheel_separation_;
+
+    /// Wheel separation and radius calibration multipliers:
+    double wheel_separation_multiplier_;
+    double left_wheel_radius_multiplier_;
+    double right_wheel_radius_multiplier_;
+
+    /// Positions and velocities from the encoders:
+    std::vector<double> left_positions_;
+    std::vector<double> right_positions_;
+
+    std::vector<double> left_velocities_;
+    std::vector<double> right_velocities_;
+
   private:
     std::string name_;
 
     /// Odometry related:
     ros::Duration publish_period_;
-    ros::Time last_state_publish_time_;
+    ros::Time last_odom_publish_time_;
+    ros::Time last_odom_tf_publish_time_;
     bool open_loop_;
+
+    bool pose_from_joint_position_;
+    bool twist_from_joint_position_;
+
+    bool period_from_time_;
+
+    bool use_position_;
+    bool use_velocity_;
 
     /// Hardware handles:
     std::vector<hardware_interface::JointHandle> left_wheel_joints_;
     std::vector<hardware_interface::JointHandle> right_wheel_joints_;
-
-    // Previous time
-    ros::Time time_previous_;
-
-    /// Previous velocities from the encoders:
-    std::vector<double> vel_left_previous_;
-    std::vector<double> vel_right_previous_;
-
-    /// Previous velocities from the encoders:
-    double vel_left_desired_previous_;
-    double vel_right_desired_previous_;
 
     /// Velocity command related:
     struct Commands
@@ -133,39 +209,103 @@ namespace diff_drive_controller{
     Commands command_struct_;
     ros::Subscriber sub_command_;
 
-    /// Publish executed commands
-    std::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::TwistStamped> > cmd_vel_pub_;
-
     /// Odometry related:
     std::shared_ptr<realtime_tools::RealtimePublisher<nav_msgs::Odometry> > odom_pub_;
-    std::shared_ptr<realtime_tools::RealtimePublisher<tf::tfMessage> > tf_odom_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<tf2_msgs::TFMessage> > tf_odom_pub_;
     Odometry odometry_;
 
-    /// Controller state publisher
-    std::shared_ptr<realtime_tools::RealtimePublisher<control_msgs::JointTrajectoryControllerState> > controller_state_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::TwistStamped> > cmd_vel_limited_pub_;
 
-    /// Wheel separation, wrt the midpoint of the wheel width:
-    double wheel_separation_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<DiffDriveControllerState> > state_pub_;
 
-    /// Wheel radius (assuming it's the same for the left and right wheels):
-    double wheel_radius_;
+    std::vector<double> left_positions_estimated_;
+    std::vector<double> right_positions_estimated_;
 
-    /// Wheel separation and radius calibration multipliers:
-    double wheel_separation_multiplier_;
-    double left_wheel_radius_multiplier_;
-    double right_wheel_radius_multiplier_;
+    std::vector<double> left_velocities_estimated_;
+    std::vector<double> right_velocities_estimated_;
+
+    std::vector<double> left_positions_previous_;
+    std::vector<double> right_positions_previous_;
+
+    std::vector<double> left_velocities_previous_;
+    std::vector<double> right_velocities_previous_;
+
+    std::vector<double> left_velocities_estimated_previous_;
+    std::vector<double> right_velocities_estimated_previous_;
+
+    double left_velocity_average_previous_;
+    double right_velocity_average_previous_;
+
+    double left_velocity_estimated_average_previous_;
+    double right_velocity_estimated_average_previous_;
+
+    double left_velocity_desired_previous_;
+    double right_velocity_desired_previous_;
+
+    double left_velocity_limited_previous_;
+    double right_velocity_limited_previous_;
+
+    ros::Time time_previous_;
+
+    /// Dynamic reconfigure server related:
+    typedef dynamic_reconfigure::Server<DiffDriveControllerConfig> ReconfigureServer;
+    std::shared_ptr<ReconfigureServer> cfg_server_;
+
+    static const DiffDriveControllerConfig config_default_;
+
+    /// Timing related:
+    boost::timer::cpu_timer cpu_timer_;
+
+    struct DynamicParams
+    {
+      bool pose_from_joint_position;
+      bool twist_from_joint_position;
+
+      bool period_from_time;
+
+      double wheel_separation_multiplier;
+      double left_wheel_radius_multiplier;
+      double right_wheel_radius_multiplier;
+
+      double k_l;
+      double k_r;
+
+      double wheel_resolution;
+
+      bool publish_state;
+      bool publish_cmd_vel_limited;
+
+      double control_frequency_desired;
+
+      DynamicParams()
+        : pose_from_joint_position(true)
+        , twist_from_joint_position(false)
+        , period_from_time(false)
+        , wheel_separation_multiplier(1.0)
+        , left_wheel_radius_multiplier(1.0)
+        , right_wheel_radius_multiplier(1.0)
+        , k_l(0.01)
+        , k_r(0.01)
+        , wheel_resolution(0.0)
+        , publish_state(false)
+        , publish_cmd_vel_limited(false)
+        , control_frequency_desired(0.0)
+      {}
+    };
+    realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
+    DynamicParams dynamic_params_struct_;
+
+    /// Measurement Covariance Model multipliers:
+    double k_l_;
+    double k_r_;
+
+    double wheel_resolution_;  // [rad]
 
     /// Timeout to consider cmd_vel commands old:
     double cmd_vel_timeout_;
 
-    /// Whether to allow multiple publishers on cmd_vel topic or not:
-    bool allow_multiple_cmd_vel_publishers_;
-
     /// Frame to use for the robot base:
     std::string base_frame_id_;
-
-    /// Frame to use for odometry and odom tf:
-    std::string odom_frame_id_;
 
     /// Whether to publish odometry to tf or not:
     bool enable_odom_tf_;
@@ -179,72 +319,38 @@ namespace diff_drive_controller{
     SpeedLimiter limiter_lin_;
     SpeedLimiter limiter_ang_;
 
-    /// Publish limited velocity:
-    bool publish_cmd_;
+    WheelSpeedLimiter wheel_speed_limiter_;
 
-    /// Publish wheel data:
-    bool publish_wheel_joint_controller_state_;
+    /// Publish limited velocity command:
+    /// Note that the realtime_tools::RealtimePublisher doesn't provide any
+    /// method to obtain the number of subscribers because getNumSubscribers()
+    /// isn't RT-safe, so we cannot implement a lazy publisher with:
+    /// cmd_vel_limited_pub_->getNumSubscribers() > 0
+    bool publish_cmd_vel_limited_;
 
-    // A struct to hold dynamic parameters
-    // set from dynamic_reconfigure server
-    struct DynamicParams
-    {
-      bool update;
+    /// Publish joint trajectory controller state:
+    /// Note that the realtime_tools::RealtimePublisher doesn't provide any
+    /// method to obtain the number of subscribers because getNumSubscribers()
+    /// isn't RT-safe, so we cannot implement a lazy publisher with:
+    /// state_pub_->getNumSubscribers() > 0
+    bool publish_state_;
 
-      double left_wheel_radius_multiplier;
-      double right_wheel_radius_multiplier;
-      double wheel_separation_multiplier;
+    /// Desired control frequency [Hz] (and corresponding period [s]):
+    /// This can be used when the actual/real control frequency/period has too
+    /// much jitter.
+    /// If !(control_frequency_desired_ > 0.0), the actual/real
+    /// frequency/period provided on the update hook (method) is used, which is
+    /// the default and preferred behaviour in general.
+    double control_frequency_desired_;
+    double control_period_desired_;
 
-      bool publish_cmd;
+    /// Meas(urement) Covariance Model, which can be: "linear", "quadratic":
+    std::string meas_covariance_model_;
 
-      double publish_rate;
-      bool enable_odom_tf;
-
-      DynamicParams()
-        : left_wheel_radius_multiplier(1.0)
-        , right_wheel_radius_multiplier(1.0)
-        , wheel_separation_multiplier(1.0)
-        , publish_cmd(false)
-        , publish_rate(50)
-        , enable_odom_tf(true)
-      {}
-
-      friend std::ostream& operator<<(std::ostream& os, const DynamicParams& params)
-      {
-        os << "DynamicParams:\n"
-           //
-           << "\tOdometry parameters:\n"
-           << "\t\tleft wheel radius multiplier: "   << params.left_wheel_radius_multiplier  << "\n"
-           << "\t\tright wheel radius multiplier: "  << params.right_wheel_radius_multiplier << "\n"
-           << "\t\twheel separation multiplier: "    << params.wheel_separation_multiplier   << "\n"
-           //
-           << "\tPublication parameters:\n"
-           << "\t\tPublish executed velocity command: " << (params.publish_cmd?"enabled":"disabled") << "\n"
-           << "\t\tPublication rate: " << params.publish_rate                 << "\n"
-           << "\t\tPublish frame odom on tf: " << (params.enable_odom_tf?"enabled":"disabled");
-
-        return os;
-      }
-    };
-
-    realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
-
-    /// Dynamic Reconfigure server
-    typedef dynamic_reconfigure::Server<DiffDriveControllerConfig> ReconfigureServer;
-    
-    std::shared_ptr<ReconfigureServer> dyn_reconf_server_;
-
-  private:
-    /**
-     * \brief Brakes the wheels, i.e. sets the velocity to 0
-     */
-    void brake();
-
-    /**
-     * \brief Velocity command callback
-     * \param command Velocity command message (twist)
-     */
-    void cmdVelCallback(const geometry_msgs::Twist& command);
+    /// Integrate method, which can be: "euler", "rungekutta2", "exact"
+    /// and differentiation scheme, which can be: "analytic", "autodiff"
+    std::string integrate_method_;
+    std::string integrate_differentiation_;
 
     /**
      * \brief Get the wheel names from a wheel param
@@ -259,7 +365,8 @@ namespace diff_drive_controller{
                        std::vector<std::string>& wheel_names);
 
     /**
-     * \brief Sets odometry parameters from the URDF, i.e. the wheel radius and separation
+     * \brief Sets odometry parameters from the URDF, i.e. the wheel radius and
+     * separation
      * \param root_nh Root node handle
      * \param left_wheel_name Name of the left wheel joint
      * \param right_wheel_name Name of the right wheel joint
@@ -275,37 +382,16 @@ namespace diff_drive_controller{
      * \param root_nh Root node handle
      * \param controller_nh Node handle inside the controller namespace
      */
-    void setOdomPubFields(ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh);
+    void setOdomPubFields(
+        ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh);
 
-    /**
-     * \brief Callback for dynamic_reconfigure server
-     * \param config The config set from dynamic_reconfigure server
-     * \param level not used at this time.
-     * \see dyn_reconf_server_
-     */
-    void reconfCallback(DiffDriveControllerConfig& config, uint32_t /*level*/);
 
-    /**
-     * \brief Update the dynamic parameters in the RT loop
-     */
-    void updateDynamicParams();
-
-    /**
-     * \brief
-     * \param time Current time
-     * \param period Time since the last called to update
-     * \param curr_cmd Current velocity command
-     * \param wheel_separation wheel separation with multiplier
-     * \param left_wheel_radius left wheel radius with multiplier
-     * \param right_wheel_radius right wheel radius with multiplier
-     */
-    void publishWheelData(const ros::Time& time,
-                          const ros::Duration& period,
-                          Commands& curr_cmd,
-                          double wheel_separation,
-                          double left_wheel_radius,
-                          double right_wheel_radius);
+    /// Determines if acceleration limits should be applied prior calling wheelSpeedLimiter
+    /// Applying the accelerations will provide a much more accurate command estimate,
+    /// however older wheelSpeedLimiter functions have been tuned to unrestricted input commands.
+    bool limit_accel_before_wheel_speed_limiter_;
   };
 
-  PLUGINLIB_EXPORT_CLASS(diff_drive_controller::DiffDriveController, controller_interface::ControllerBase);
-} // namespace diff_drive_controller
+}  // namespace diff_drive_controller
+
+#endif // DIFF_DRIVE_CONTROLLER_H

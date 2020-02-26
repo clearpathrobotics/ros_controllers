@@ -2,16 +2,14 @@
   <!-- Load common test stuff -->
   <include file="$(find diff_drive_controller)/test/diff_drive_common.launch" />
 
-  <!-- Set odom_frame_id to something new -->
-  <rosparam>
-    diffbot_controller:
-      odom_frame_id: new_odom
-  </rosparam>
+  <!-- Load diff drive parameter velocity feedback (pose from joint position
+       feedback false) -->
+  <rosparam command="load" file="$(find diff_drive_controller)/test/diffbot_velocity_feedback.yaml" />
 
   <!-- Controller test -->
-  <test test-name="diff_drive_odom_frame_test"
+  <test test-name="diff_drive_test"
         pkg="diff_drive_controller"
-        type="diff_drive_odom_frame_test"
+        type="diff_drive_test"
         time-limit="80.0">
     <remap from="cmd_vel" to="diffbot_controller/cmd_vel" />
     <remap from="odom" to="diffbot_controller/odom" />

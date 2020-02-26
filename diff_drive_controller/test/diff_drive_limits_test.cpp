@@ -42,7 +42,7 @@ TEST_F(DiffDriveControllerTest, testLinearJerkLimits)
   cmd_vel.linear.x = 0.0;
   cmd_vel.angular.z = 0.0;
   publish(cmd_vel);
-  ros::Duration(2.0).sleep();
+  ros::Duration(5.0).sleep();
   // get initial odom
   nav_msgs::Odometry old_odom = getLastOdom();
   // send a big command
@@ -64,7 +64,7 @@ TEST_F(DiffDriveControllerTest, testLinearJerkLimits)
 TEST_F(DiffDriveControllerTest, testLinearAccelerationLimits)
 {
   // wait for ROS
-  while(!isControllerAlive())
+  while (!isControllerAlive())
   {
     ros::Duration(0.1).sleep();
   }
@@ -123,7 +123,6 @@ TEST_F(DiffDriveControllerTest, testLinearVelocityLimits)
   publish(cmd_vel);
 }
 
-/* This test has been failing on Travis for a long time due to timing issues however it works well when ran manually
 TEST_F(DiffDriveControllerTest, testAngularJerkLimits)
 {
   // wait for ROS
@@ -136,7 +135,7 @@ TEST_F(DiffDriveControllerTest, testAngularJerkLimits)
   cmd_vel.linear.x = 0.0;
   cmd_vel.angular.z = 0.0;
   publish(cmd_vel);
-  ros::Duration(2.0).sleep();
+  ros::Duration(5.0).sleep();
   // get initial odom
   nav_msgs::Odometry old_odom = getLastOdom();
   // send a big command
@@ -154,12 +153,11 @@ TEST_F(DiffDriveControllerTest, testAngularJerkLimits)
   cmd_vel.angular.z = 0.0;
   publish(cmd_vel);
 }
-*/
 
 TEST_F(DiffDriveControllerTest, testAngularAccelerationLimits)
 {
   // wait for ROS
-  while(!isControllerAlive())
+  while (!isControllerAlive())
   {
     ros::Duration(0.1).sleep();
   }
@@ -190,7 +188,7 @@ TEST_F(DiffDriveControllerTest, testAngularAccelerationLimits)
 TEST_F(DiffDriveControllerTest, testAngularVelocityLimits)
 {
   // wait for ROS
-  while(!isControllerAlive())
+  while (!isControllerAlive())
   {
     ros::Duration(0.1).sleep();
   }
@@ -225,7 +223,6 @@ int main(int argc, char** argv)
 
   ros::AsyncSpinner spinner(1);
   spinner.start();
-  //ros::Duration(0.5).sleep();
   int ret = RUN_ALL_TESTS();
   spinner.stop();
   ros::shutdown();

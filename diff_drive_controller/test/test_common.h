@@ -23,22 +23,33 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-//////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 /// \author Bence Magyar
+/// \author Enrique Fernandez
 
 #include <cmath>
 
-#include <gtest/gtest.h>
+#include <limits>
 
 #include <ros/ros.h>
 
+#include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <nav_msgs/Odometry.h>
-#include <control_msgs/JointTrajectoryControllerState.h>
-#include <tf/tf.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/utils.h>
+#include <control_toolbox/pid.h>
+#include <angles/angles.h>
+
+#include <diff_drive_controller/odometry.h>
+#include <diff_drive_controller/DiffDriveControllerState.h>
+
+#include <Eigen/Dense>
 
 #include <std_srvs/Empty.h>
+
+#include "gtest_common.h"
 
 // Floating-point value comparison threshold
 const double EPS = 0.01;
@@ -53,11 +64,12 @@ class DiffDriveControllerTest : public ::testing::Test
 public:
 
   DiffDriveControllerTest()
-  : received_first_odom(false)
-  , cmd_pub(nh.advertise<geometry_msgs::Twist>("cmd_vel", 100))
+  : cmd_pub(nh.advertise<geometry_msgs::Twist>("cmd_vel", 100))
   , odom_sub(nh.subscribe("odom", 100, &DiffDriveControllerTest::odomCallback, this))
-  , vel_out_sub(nh.subscribe("cmd_vel_out", 100, &DiffDriveControllerTest::cmdVelOutCallback, this))
-  , joint_traj_controller_state_sub(nh.subscribe("wheel_joint_controller_state", 100, &DiffDriveControllerTest::jointTrajectoryControllerStateCallback, this))
+  , cmd_vel_limited_sub(nh.subscribe("cmd_vel_limited", 100, &DiffDriveControllerTest::cmdVelLimitedCallback, this))
+  , state_sub(nh.subscribe("state", 100, &DiffDriveControllerTest::diffDriveControllerStateCallback, this))
+  , last_odoms(2)
+  , last_states(3)
   , start_srv(nh.serviceClient<std_srvs::Empty>("start"))
   , stop_srv(nh.serviceClient<std_srvs::Empty>("stop"))
   {
@@ -66,95 +78,130 @@ public:
   ~DiffDriveControllerTest()
   {
     odom_sub.shutdown();
-    joint_traj_controller_state_sub.shutdown();
+    cmd_vel_limited_sub.shutdown();
+    state_sub.shutdown();
   }
 
-  nav_msgs::Odometry getLastOdom(){ return last_odom; }
-  geometry_msgs::TwistStamped getLastCmdVelOut(){ return last_cmd_vel_out; }
-  control_msgs::JointTrajectoryControllerState getLastJointTrajectoryControllerState(){ return last_joint_traj_controller_state; }
+  nav_msgs::Odometry getLastOdom(){ return last_odoms[0]; }
+  std::vector<nav_msgs::Odometry> getLastOdoms(){ return last_odoms; }
+  geometry_msgs::TwistStamped getLastCmdVelLimited(){ return last_cmd_vel_limited; }
+  diff_drive_controller::DiffDriveControllerState getLastState(){ return last_states[0]; }
+  std::vector<diff_drive_controller::DiffDriveControllerState> getLastStates(){ return last_states; }
   void publish(geometry_msgs::Twist cmd_vel){ cmd_pub.publish(cmd_vel); }
-  bool isControllerAlive()const{ return (odom_sub.getNumPublishers() > 0) && (cmd_pub.getNumSubscribers() > 0); }
-  bool isPublishingCmdVelOut(const ros::Duration &timeout=ros::Duration(1)) const
-  {
-    ros::Time start = ros::Time::now();
-    int get_num_publishers = vel_out_sub.getNumPublishers();
-    while ( (get_num_publishers == 0) && (ros::Time::now() < start + timeout) ) {
-      ros::Duration(0.1).sleep();
-      get_num_publishers = vel_out_sub.getNumPublishers();
-    }
-    return (get_num_publishers > 0);
-  }
-  bool isPublishingJointTrajectoryControllerState(){ return (joint_traj_controller_state_sub.getNumPublishers() > 0); }
-  bool hasReceivedFirstOdom()const{ return received_first_odom; }
+  bool isControllerAlive(){ return (odom_sub.getNumPublishers() > 0) && (cmd_pub.getNumSubscribers() > 0); }
 
   void start(){ std_srvs::Empty srv; start_srv.call(srv); }
   void stop(){ std_srvs::Empty srv; stop_srv.call(srv); }
 
-  void waitForController() const
+  void goToYaw(double target,
+      double tolerance = ORIENTATION_TOLERANCE,
+      double control_frequency = 10.0)
   {
-    while(!isControllerAlive() && ros::ok())
-    {
-      ROS_DEBUG_STREAM_THROTTLE(0.5, "Waiting for controller.");
-      ros::Duration(0.1).sleep();
-    }
-    if (!ros::ok())
-      FAIL() << "Something went wrong while executing test.";
-  }
+    // Setup PID controller with gains: K_p, K_i, K_d, i_max, i_min
+    control_toolbox::Pid pid(1.0, 0.1, 0.0, 1.0, -1.0);
 
-  void waitForOdomMsgs() const
-  {
-    while(!hasReceivedFirstOdom() && ros::ok())
+    // Control loop:
+    ros::Rate r(control_frequency);
+    const ros::Duration dt = r.expectedCycleTime();
+    while (true)
     {
-      ROS_DEBUG_STREAM_THROTTLE(0.5, "Waiting for odom messages to be published.");
-      ros::Duration(0.01).sleep();
+      // Retrieve current state:
+      const nav_msgs::Odometry odom = getLastOdom();
+
+      tf2::Quaternion q;
+      tf2::fromMsg(odom.pose.pose.orientation, q);
+
+      const double yaw = tf2::getYaw(q);
+
+      // Compute error wrt target:
+      const double error = angles::shortest_angular_distance(yaw, target);
+
+      // Exit when target reach up to some tolerance:
+      if (error < tolerance)
+      {
+        break;
+      }
+
+      // Command new velocity control signal using the PID controller:
+      geometry_msgs::Twist cmd_vel;
+      cmd_vel.angular.z = pid.computeCommand(error, dt);
+      publish(cmd_vel);
+
+      r.sleep();
     }
-    if (!ros::ok())
-      FAIL() << "Something went wrong while executing test.";
+
+    // Zero out (stop) velocity control signal:
+    geometry_msgs::Twist cmd_vel;
+    cmd_vel.angular.z = 0.0;
+    publish(cmd_vel);
   }
 
 private:
-  bool received_first_odom;
   ros::NodeHandle nh;
   ros::Publisher cmd_pub;
   ros::Subscriber odom_sub;
-  ros::Subscriber vel_out_sub;
-  nav_msgs::Odometry last_odom;
-  geometry_msgs::TwistStamped last_cmd_vel_out;
-  ros::Subscriber joint_traj_controller_state_sub;
-  control_msgs::JointTrajectoryControllerState last_joint_traj_controller_state;
+  ros::Subscriber cmd_vel_limited_sub;
+  ros::Subscriber state_sub;
+  std::vector<nav_msgs::Odometry> last_odoms;
+  geometry_msgs::TwistStamped last_cmd_vel_limited;
+  std::vector<diff_drive_controller::DiffDriveControllerState> last_states;
 
   ros::ServiceClient start_srv;
   ros::ServiceClient stop_srv;
 
   void odomCallback(const nav_msgs::Odometry& odom)
   {
-    ROS_INFO_STREAM("Callback received: pos.x: " << odom.pose.pose.position.x
+    ROS_INFO_STREAM("Odometry callback reveived (" << odom.header.seq
+                     << "): pos.x: " << odom.pose.pose.position.x
                      << ", orient.z: " << odom.pose.pose.orientation.z
                      << ", lin_est: " << odom.twist.twist.linear.x
                      << ", ang_est: " << odom.twist.twist.angular.z);
-    last_odom = odom;
-    received_first_odom = true;
+
+    if (last_odoms[0].header.seq > 0)
+    {
+      EXPECT_EQ(last_odoms[0].header.seq + 1, odom.header.seq);
+    }
+
+    last_odoms[1] = last_odoms[0];
+    last_odoms[0] = odom;
   }
 
-  void jointTrajectoryControllerStateCallback(const control_msgs::JointTrajectoryControllerState& joint_traj_controller_state)
+  void cmdVelLimitedCallback(const geometry_msgs::TwistStamped& twist)
   {
-    ROS_INFO_STREAM("Joint trajectory controller state callback.");
-    ROS_DEBUG_STREAM("Joint trajectory controller state callback received:\n" <<
-                     joint_traj_controller_state);
+    ROS_INFO_STREAM("Twist callback reveived: linear: " << twist.twist.linear.x
+                     << ", angular: " << twist.twist.angular.z);
 
-    last_joint_traj_controller_state = joint_traj_controller_state;
+    last_cmd_vel_limited = twist;
   }
 
-  void cmdVelOutCallback(const geometry_msgs::TwistStamped& cmd_vel_out)
+  void diffDriveControllerStateCallback(const diff_drive_controller::DiffDriveControllerState& msg)
   {
-    ROS_INFO_STREAM("Callback received: lin: " << cmd_vel_out.twist.linear.x
-                     << ", ang: " << cmd_vel_out.twist.angular.z);
-    last_cmd_vel_out = cmd_vel_out;
+    ROS_INFO_STREAM("Joint trajectory controller state callback reveived("
+                    << msg.header.seq << ")");
+
+    if (last_states[0].header.seq > 0)
+    {
+      EXPECT_EQ(last_states[0].header.seq + 1, msg.header.seq);
+    }
+
+    last_states[2] = last_states[1];
+    last_states[1] = last_states[0];
+    last_states[0] = msg;
   }
+
 };
 
-inline tf::Quaternion tfQuatFromGeomQuat(const geometry_msgs::Quaternion& quat)
+void propagate(double& x, double& y, double& yaw,
+    double v_x, double v_y, double v_yaw, double dt)
 {
-  return tf::Quaternion(quat.x, quat.y, quat.z, quat.w);
-}
+  const double sin_yaw = std::sin(yaw);
+  const double cos_yaw = std::cos(yaw);
 
+  // (x, y) = (x, y) + R(yaw) * (v_x, v_y) * dt
+  x += (v_x * cos_yaw - v_y * sin_yaw) * dt;
+  y += (v_x * sin_yaw + v_y * cos_yaw) * dt;
+
+  // yaw = yaw + v_yaw * dt (normalized)
+  yaw += v_yaw * dt;
+  yaw = angles::normalize_angle(yaw);
+}

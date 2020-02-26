@@ -28,7 +28,7 @@
 /// \author Bence Magyar
 
 #include "test_common.h"
-#include <tf/transform_listener.h>
+#include <tf2_ros/transform_listener.h>
 
 // TEST CASES
 TEST_F(DiffDriveControllerTest, testNoOdomFrame)
@@ -38,11 +38,12 @@ TEST_F(DiffDriveControllerTest, testNoOdomFrame)
   {
     ros::Duration(0.1).sleep();
   }
-  // set up tf listener
-  tf::TransformListener listener;
+  // set up tf buffer core
+  tf2_ros::Buffer tf_buffer;
+  tf2_ros::TransformListener listener(tf_buffer);
   ros::Duration(2.0).sleep();
   // check the odom frame doesn't exist
-  EXPECT_FALSE(listener.frameExists("odom"));
+  EXPECT_FALSE(tf_buffer._frameExists("odom"));
 }
 
 int main(int argc, char** argv)

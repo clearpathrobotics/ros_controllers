@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// Copyright (C) 2018, PAL Robotics.
+// Copyright (C) 2013, PAL Robotics S.L.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -23,46 +23,39 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-//////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
-/// \author Jeremie Deray
+/// \author Enrique Fernandez
 
-#include "test_common.h"
+#include <diff_drive_controller/covariance.h>
 
-// TEST CASES
-TEST_F(DiffDriveControllerTest, testPublishJointTrajectoryControllerStateTopic)
+#include <gtest/gtest.h>
+
+#include <Eigen/Dense>
+
+template <typename T, int N>
+void testCovariance(const Eigen::Matrix<T, N, N>& covariance,
+    const double max_condition_number = 1e3)
 {
-  // wait for ROS
-  while(!isControllerAlive())
-  {
-    ros::Duration(0.1).sleep();
-  }
+  using namespace diff_drive_controller;
 
-  EXPECT_TRUE(isPublishingJointTrajectoryControllerState());
+  static const Eigen::IOFormat HeavyFmt(
+      Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
 
-  // zero everything before test
-  geometry_msgs::Twist cmd_vel;
-  cmd_vel.linear.x = 0.0;
-  cmd_vel.angular.z = 0.0;
-  publish(cmd_vel);
-  ros::Duration(0.1).sleep();
+  typedef Eigen::SelfAdjointEigenSolver< Eigen::Matrix<T, N, N> > EigenSolver;
 
-  cmd_vel.linear.x = 0.1;
-  publish(cmd_vel);
-  ros::Duration(0.1).sleep();
+  EigenSolver eigensolver(covariance);
 
-  EXPECT_TRUE(isPublishingJointTrajectoryControllerState());
-}
+  EXPECT_TRUE(eigensolver.info() == Eigen::Success)
+    << "Covariance =\n" << covariance.format(HeavyFmt);
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  ros::init(argc, argv, "diff_drive_publish_wheel_joint_controller_state_topic_test");
-
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
-  int ret = RUN_ALL_TESTS();
-  spinner.stop();
-  ros::shutdown();
-  return ret;
+  EXPECT_TRUE(isSymmetric(covariance))
+    << "Covariance =\n" << covariance.format(HeavyFmt);
+  EXPECT_TRUE(isPositiveDefinite(covariance, no_tag()))
+    << "Covariance =\n" << covariance.format(HeavyFmt) << "\n"
+    << "Eigenvalues = " << eigensolver.eigenvalues().transpose().format(HeavyFmt);
+  EXPECT_LT(conditionNumber(covariance), max_condition_number)
+    << "Covariance =\n" << covariance.format(HeavyFmt) << "\n"
+    << "Condition number = " << conditionNumber(covariance) << "\n"
+    << "Eigenvalues = " << eigensolver.eigenvalues().transpose().format(HeavyFmt);
 }
