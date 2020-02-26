@@ -169,7 +169,7 @@ public:
   double getPosition();
 
   hardware_interface::JointHandle joint_;
-  boost::shared_ptr<const urdf::Joint> joint_urdf_;
+  std::shared_ptr<const urdf::Joint> joint_urdf_;
   realtime_tools::RealtimeBuffer<Commands> command_;
   Commands command_struct_; // pre-allocated memory that is re-used to set the realtime buffer
 
@@ -177,7 +177,7 @@ private:
   int loop_count_;
   control_toolbox::Pid pid_controller_;       /**< Internal PID controller. */
 
-  boost::scoped_ptr<
+  std::unique_ptr<
     realtime_tools::RealtimePublisher<
       control_msgs::JointControllerState> > controller_state_publisher_ ;
 

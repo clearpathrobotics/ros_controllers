@@ -31,10 +31,9 @@
 #define JOINT_TRAJECTORY_CONTROLLER_HARDWARE_INTERFACE_ADAPTER_H
 
 #include <cassert>
+#include <memory>
 #include <string>
 #include <vector>
-
-#include <boost/shared_ptr.hpp>
 
 #include <ros/node_handle.h>
 #include <ros/time.h>
@@ -219,7 +218,7 @@ public:
   }
 
 private:
-  typedef boost::shared_ptr<control_toolbox::Pid> PidPtr;
+  typedef std::shared_ptr<control_toolbox::Pid> PidPtr;
   std::vector<PidPtr> pids_;
 
   std::vector<hardware_interface::JointHandle>* joint_handles_ptr_;
@@ -313,7 +312,7 @@ public:
   }
 
 private:
-  typedef boost::shared_ptr<control_toolbox::Pid> PidPtr;
+  typedef std::shared_ptr<control_toolbox::Pid> PidPtr;
   std::vector<PidPtr> pids_;
 
   std::vector<hardware_interface::JointHandle>* joint_handles_ptr_;

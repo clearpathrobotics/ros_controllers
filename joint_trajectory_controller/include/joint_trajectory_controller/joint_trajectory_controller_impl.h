@@ -39,10 +39,10 @@ namespace internal
 {
 
 template <class Enclosure, class Member>
-inline boost::shared_ptr<Member> share_member(boost::shared_ptr<Enclosure> enclosure, Member &member)
+inline std::shared_ptr<Member> share_member(std::shared_ptr<Enclosure> enclosure, Member &member)
 {
   actionlib::EnclosureDeleter<Enclosure> d(enclosure);
-  boost::shared_ptr<Member> p(&member, d);
+  std::shared_ptr<Member> p(&member, d);
   return p;
 }
 
@@ -76,9 +76,9 @@ std::vector<std::string> getStrings(const ros::NodeHandle& nh, const std::string
   return out;
 }
 
-boost::shared_ptr<urdf::Model> getUrdf(const ros::NodeHandle& nh, const std::string& param_name)
+std::shared_ptr<urdf::Model> getUrdf(const ros::NodeHandle& nh, const std::string& param_name)
 {
-  boost::shared_ptr<urdf::Model> urdf(new urdf::Model);
+  std::shared_ptr<urdf::Model> urdf(new urdf::Model);
 
   std::string urdf_str;
   // Check for robot_description in proper namespace
@@ -88,19 +88,19 @@ boost::shared_ptr<urdf::Model> getUrdf(const ros::NodeHandle& nh, const std::str
     {
       ROS_ERROR_STREAM("Failed to parse URDF contained in '" << param_name << "' parameter (namespace: " <<
         nh.getNamespace() << ").");
-      return boost::shared_ptr<urdf::Model>();
+      return std::shared_ptr<urdf::Model>();
     }
   }
   // Check for robot_description in root
   else if (!urdf->initParam("robot_description"))
   {
     ROS_ERROR_STREAM("Failed to parse URDF contained in '" << param_name << "' parameter");
-    return boost::shared_ptr<urdf::Model>();
+    return std::shared_ptr<urdf::Model>();
   }
   return urdf;
 }
 
-typedef boost::shared_ptr<const urdf::Joint> UrdfJointConstPtr;
+typedef std::shared_ptr<const urdf::Joint> UrdfJointConstPtr;
 std::vector<UrdfJointConstPtr> getUrdfJoints(const urdf::Model& urdf, const std::vector<std::string>& joint_names)
 {
   std::vector<UrdfJointConstPtr> out;
@@ -283,7 +283,7 @@ bool JointTrajectoryController<SegmentImpl, HardwareInterface>::init(HardwareInt
   const unsigned int n_joints = joint_names_.size();
 
   // URDF joints
-  boost::shared_ptr<urdf::Model> urdf = getUrdf(root_nh, "robot_description");
+  std::shared_ptr<urdf::Model> urdf = getUrdf(root_nh, "robot_description");
   if (!urdf) {return false;}
 
   std::vector<UrdfJointConstPtr> urdf_joints = getUrdfJoints(*urdf, joint_names_);

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5.1)
 project(diff_drive_controller)
 
 find_package(catkin REQUIRED
@@ -22,7 +22,7 @@ find_package(Boost REQUIRED
   COMPONENTS
     timer)
 
-find_package(Eigen REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 find_package(Ceres REQUIRED)
 
@@ -53,13 +53,13 @@ catkin_package(
     urdf
   DEPENDS
     Boost
-    Eigen)
+    EIGEN3)
 
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
-  ${EIGEN_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
   ${sophus_INCLUDE_DIRS}
   ${CERES_INCLUDE_DIRS})
 
@@ -103,12 +103,10 @@ if (CATKIN_ENABLE_TESTING)
       tf2
       tf2_ros)
 
-  find_package(Eigen COMPONENTS)
-
   include_directories(
     include
     ${catkin_INCLUDE_DIRS}
-    ${EIGEN_INCLUDE_DIRS})
+    ${EIGEN3_INCLUDE_DIR})
 
   catkin_add_gtest(integrate_functor_test test/integrate_functor_test.cpp)
   target_link_libraries(integrate_functor_test ${PROJECT_NAME})

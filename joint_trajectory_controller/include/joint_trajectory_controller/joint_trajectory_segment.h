@@ -74,7 +74,7 @@ public:
   typedef typename Segment::Time   Time;
 
   typedef realtime_tools::RealtimeServerGoalHandle<control_msgs::FollowJointTrajectoryAction> RealtimeGoalHandle;
-  typedef boost::shared_ptr<RealtimeGoalHandle>                                               RealtimeGoalHandlePtr;
+  typedef std::shared_ptr<RealtimeGoalHandle>                                               RealtimeGoalHandlePtr;
 
   struct State : public Segment::State
   {

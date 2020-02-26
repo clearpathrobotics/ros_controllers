@@ -210,13 +210,13 @@ namespace diff_drive_controller
     ros::Subscriber sub_command_;
 
     /// Odometry related:
-    boost::shared_ptr<realtime_tools::RealtimePublisher<nav_msgs::Odometry> > odom_pub_;
-    boost::shared_ptr<realtime_tools::RealtimePublisher<tf2_msgs::TFMessage> > tf_odom_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<nav_msgs::Odometry> > odom_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<tf2_msgs::TFMessage> > tf_odom_pub_;
     Odometry odometry_;
 
-    boost::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::TwistStamped> > cmd_vel_limited_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::TwistStamped> > cmd_vel_limited_pub_;
 
-    boost::shared_ptr<realtime_tools::RealtimePublisher<DiffDriveControllerState> > state_pub_;
+    std::shared_ptr<realtime_tools::RealtimePublisher<DiffDriveControllerState> > state_pub_;
 
     std::vector<double> left_positions_estimated_;
     std::vector<double> right_positions_estimated_;
@@ -249,7 +249,7 @@ namespace diff_drive_controller
 
     /// Dynamic reconfigure server related:
     typedef dynamic_reconfigure::Server<DiffDriveControllerConfig> ReconfigureServer;
-    boost::shared_ptr<ReconfigureServer> cfg_server_;
+    std::shared_ptr<ReconfigureServer> cfg_server_;
 
     static const DiffDriveControllerConfig config_default_;
 

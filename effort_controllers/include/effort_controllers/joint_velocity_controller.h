@@ -149,7 +149,7 @@ private:
 
   //friend class JointVelocityControllerNode; // what is this for??
 
-  boost::scoped_ptr<
+  std::unique_ptr<
     realtime_tools::RealtimePublisher<
       control_msgs::JointControllerState> > controller_state_publisher_ ;
 

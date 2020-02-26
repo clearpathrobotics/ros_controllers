@@ -41,7 +41,7 @@
 
 #include <Eigen/Core>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 namespace diff_drive_controller
 {
@@ -58,7 +58,7 @@ namespace diff_drive_controller
       EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
       /// Pointer types:
-      typedef boost::shared_ptr<MeasCovarianceModel> Ptr;
+      typedef std::shared_ptr<MeasCovarianceModel> Ptr;
 
       /**
        * \brief Constructor

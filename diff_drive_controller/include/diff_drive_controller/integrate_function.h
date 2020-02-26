@@ -41,7 +41,7 @@
 
 #include <Eigen/Core>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 namespace diff_drive_controller
 {
@@ -57,7 +57,7 @@ namespace diff_drive_controller
       typedef Eigen::Matrix<double, 3, 2> MeasJacobian;
 
       /// Pointer types:
-      typedef boost::shared_ptr<IntegrateFunction> Ptr;
+      typedef std::shared_ptr<IntegrateFunction> Ptr;
 
       /**
        * \brief Constructor

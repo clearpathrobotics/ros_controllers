@@ -36,7 +36,8 @@
 #include <pluginlib/class_list_macros.h>
 #include <sensor_msgs/Imu.h>
 #include <realtime_tools/realtime_publisher.h>
-#include <boost/shared_ptr.hpp>
+
+#include <memory>
 
 namespace imu_sensor_controller
 {
@@ -54,7 +55,7 @@ public:
 
 private:
   std::vector<hardware_interface::ImuSensorHandle> sensors_;
-  typedef boost::shared_ptr<realtime_tools::RealtimePublisher<sensor_msgs::Imu> > RtPublisherPtr;
+  typedef std::shared_ptr<realtime_tools::RealtimePublisher<sensor_msgs::Imu> > RtPublisherPtr;
   std::vector<RtPublisherPtr> realtime_pubs_;
   std::vector<ros::Time> last_publish_times_;
   double publish_rate_;

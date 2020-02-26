@@ -330,7 +330,7 @@ namespace diff_drive_controller
     TwistCovariance minimum_twist_covariance_;
 
     /// Meas(urement) Covariance Model:
-    boost::shared_ptr<MeasCovarianceModel> meas_covariance_model_;
+    std::shared_ptr<MeasCovarianceModel> meas_covariance_model_;
 
     /// Wheel kinematic parameters [m]:
     double wheel_separation_;
@@ -348,7 +348,7 @@ namespace diff_drive_controller
     RollingMeanAcc v_yaw_acc_;
 
     /// Integration funcion, used to integrate the odometry:
-    boost::shared_ptr<IntegrateFunction> integrate_fun_;
+    std::shared_ptr<IntegrateFunction> integrate_fun_;
   };
 }
 

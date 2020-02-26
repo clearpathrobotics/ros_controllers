@@ -79,12 +79,12 @@ IntegrateFunction::Ptr IntegrateFunction::create(const std::string& method,
   {
     if (differentiation == "analytic")
     {
-      return boost::allocate_shared<AnalyticEulerIntegrateFunction>(
+      return std::allocate_shared<AnalyticEulerIntegrateFunction>(
           Eigen::aligned_allocator<AnalyticEulerIntegrateFunction>());
     }
     else if (differentiation == "autodiff")
     {
-      return boost::allocate_shared<AutoDiffEulerIntegrateFunction>(
+      return std::allocate_shared<AutoDiffEulerIntegrateFunction>(
           Eigen::aligned_allocator<AutoDiffEulerIntegrateFunction>());
     }
   }
@@ -92,12 +92,12 @@ IntegrateFunction::Ptr IntegrateFunction::create(const std::string& method,
   {
     if (differentiation == "analytic")
     {
-      return boost::allocate_shared<AnalyticRungeKutta2IntegrateFunction>(
+      return std::allocate_shared<AnalyticRungeKutta2IntegrateFunction>(
           Eigen::aligned_allocator<AnalyticRungeKutta2IntegrateFunction>());
     }
     else if (differentiation == "autodiff")
     {
-      return boost::allocate_shared<AutoDiffRungeKutta2IntegrateFunction>(
+      return std::allocate_shared<AutoDiffRungeKutta2IntegrateFunction>(
           Eigen::aligned_allocator<AutoDiffRungeKutta2IntegrateFunction>());
     }
   }
@@ -105,12 +105,12 @@ IntegrateFunction::Ptr IntegrateFunction::create(const std::string& method,
   {
     if (differentiation == "analytic")
     {
-      return boost::allocate_shared<AnalyticExactIntegrateFunction>(
+      return std::allocate_shared<AnalyticExactIntegrateFunction>(
           Eigen::aligned_allocator<AnalyticExactIntegrateFunction>());
     }
     else if (differentiation == "autodiff")
     {
-      return boost::allocate_shared<AutoDiffExactIntegrateFunction>(
+      return std::allocate_shared<AutoDiffExactIntegrateFunction>(
           Eigen::aligned_allocator<AutoDiffExactIntegrateFunction>());
     }
   }

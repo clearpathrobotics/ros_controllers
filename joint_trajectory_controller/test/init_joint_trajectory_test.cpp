@@ -745,7 +745,7 @@ TEST_F(InitTrajectoryTest, GoalHandleTest)
   typedef actionlib::ActionServer<control_msgs::FollowJointTrajectoryAction>                  ActionServer;
   typedef ActionServer::GoalHandle                                                            GoalHandle;
   typedef realtime_tools::RealtimeServerGoalHandle<control_msgs::FollowJointTrajectoryAction> RealtimeGoalHandle;
-  typedef boost::shared_ptr<RealtimeGoalHandle>                                               RealtimeGoalHandlePtr;
+  typedef std::shared_ptr<RealtimeGoalHandle>                                               RealtimeGoalHandlePtr;
 
   GoalHandle gh;
   RealtimeGoalHandlePtr rt_goal(new RealtimeGoalHandle(gh));

@@ -36,7 +36,7 @@
 #include <pluginlib/class_list_macros.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include <realtime_tools/realtime_publisher.h>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 namespace force_torque_sensor_controller
 {
@@ -54,7 +54,7 @@ public:
 
 private:
   std::vector<hardware_interface::ForceTorqueSensorHandle> sensors_;
-  typedef boost::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::WrenchStamped> > RtPublisherPtr;
+  typedef std::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::WrenchStamped> > RtPublisherPtr;
   std::vector<RtPublisherPtr> realtime_pubs_;
   std::vector<ros::Time> last_publish_times_;
   double publish_rate_;

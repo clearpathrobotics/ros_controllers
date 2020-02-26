@@ -33,12 +33,10 @@
 // C++ standard
 #include <algorithm>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
-
-// Boost
-#include <boost/shared_ptr.hpp>
 
 // ROS messages
 #include <control_msgs/FollowJointTrajectoryAction.h>
@@ -94,7 +92,7 @@ template <class Trajectory>
 struct InitJointTrajectoryOptions
 {
   typedef realtime_tools::RealtimeServerGoalHandle<control_msgs::FollowJointTrajectoryAction> RealtimeGoalHandle;
-  typedef boost::shared_ptr<RealtimeGoalHandle>                                               RealtimeGoalHandlePtr;
+  typedef std::shared_ptr<RealtimeGoalHandle>                                               RealtimeGoalHandlePtr;
   typedef typename Trajectory::value_type::Scalar                                             Scalar;
 
   InitJointTrajectoryOptions()

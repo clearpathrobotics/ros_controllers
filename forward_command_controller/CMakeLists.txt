@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5.1)
 project(forward_command_controller)
 
 # Load catkin and all dependencies required for this package
