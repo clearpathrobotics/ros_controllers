@@ -745,7 +745,7 @@ namespace diff_drive_controller
       // same period it was used to compute it.
       odometry_.updateTwist();
 
-      last_odom_publish_time_ = time;
+      last_odom_publish_time_ += publish_period_;
 
       // Populate odom message and publish:
       tf2::Quaternion q;
@@ -777,7 +777,7 @@ namespace diff_drive_controller
       // date with every control cycle and can be published at any rate because
       // it doesn't depend on any period.
 
-      last_odom_tf_publish_time_ = time;
+      last_odom_tf_publish_time_ += publish_period_;
 
       // Populate tf odometry frame message and publish:
       tf2::Quaternion q;
